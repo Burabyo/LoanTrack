@@ -1,7 +1,7 @@
 'use client';
 import { useMemo } from 'react';
 import { collection, query, where } from 'firebase/firestore';
-import { useCollection, useFirestore, useUser } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { loans as mockLoans, clients as mockClients } from '@/lib/data';
 import { columns } from '@/components/loans/columns';
 import { DataTable } from '@/components/data-table/data-table';
@@ -12,11 +12,11 @@ export default function LoansPage() {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  const loansRef = useMemo(() => collection(firestore, 'loans'), [firestore]);
-  const clientsRef = useMemo(() => collection(firestore, 'clients'), [firestore]);
+  const loansRef = useMemoFirebase(() => collection(firestore, 'loans'), [firestore]);
+  const clientsRef = useMemoFirebase(() => collection(firestore, 'clients'), [firestore]);
 
-  const { data: loans, isLoading: loansLoading } = useCollection<Loan>(loansRef as any);
-  const { data: clients, isLoading: clientsLoading } = useCollection<Client>(clientsRef as any);
+  const { data: loans, isLoading: loansLoading } = useCollection<Loan>(loansRef);
+  const { data: clients, isLoading: clientsLoading } = useCollection<Client>(clientsRef);
 
   const isLoading = loansLoading || clientsLoading;
 

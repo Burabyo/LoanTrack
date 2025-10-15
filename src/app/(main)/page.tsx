@@ -1,7 +1,7 @@
 'use client';
 import { useMemo } from 'react';
 import { collection } from 'firebase/firestore';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import {
   Card,
   CardContent,
@@ -24,15 +24,15 @@ import type { Loan, Payment, Expense, Client } from '@/lib/types';
 export default function DashboardPage() {
   const firestore = useFirestore();
 
-  const loansRef = useMemo(() => collection(firestore, 'loans'), [firestore]);
-  const paymentsRef = useMemo(() => collection(firestore, 'payments'), [firestore]);
-  const expensesRef = useMemo(() => collection(firestore, 'expenses'), [firestore]);
-  const clientsRef = useMemo(() => collection(firestore, 'clients'), [firestore]);
+  const loansRef = useMemoFirebase(() => collection(firestore, 'loans'), [firestore]);
+  const paymentsRef = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
+  const expensesRef = useMemoFirebase(() => collection(firestore, 'expenses'), [firestore]);
+  const clientsRef = useMemoFirebase(() => collection(firestore, 'clients'), [firestore]);
 
-  const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef as any);
-  const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef as any);
-  const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef as any);
-  const { data: clientsData, isLoading: clientsLoading } = useCollection<Client>(clientsRef as any);
+  const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
+  const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
+  const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
+  const { data: clientsData, isLoading: clientsLoading } = useCollection<Client>(clientsRef);
 
   const isLoading = loansLoading || paymentsLoading || expensesLoading || clientsLoading;
 
