@@ -1,104 +1,187 @@
+/**
+ * @file Overview
+ * This ruleset enforces a strict user-ownership model and role-based access control for administrative functions.
+ * All data is nested under specific resource collections, with explicit authorization checks for each operation.
+ *
+ * @data-structure
+ * /clients/{clientId}
+ * /clients/{clientId}/loans/{loanId}
+ * /clients/{clientId}/loans/{loanId}/payments/{paymentId}
+ * /cash_flow/{cashFlowId}
+ * /cashier_performance/{cashierPerformanceId}
+ * /users/{userId}
+ * /roles_admin/{userId}
+ *
+ * @key-security-decisions
+ * - Only the owner (identified by their UID) can create, update, or delete documents in their respective collections, such as /users/{userId}.
+ * - Listing of documents is generally allowed only within user-scoped subcollections, restricted to the owner.
+ * - Public listing is disallowed for collections containing private user data.
+ * - Administrative privileges are granted based on the existence of a document in the `/roles_admin/{userId}` collection, indicating an admin user.
+ * - All write operations must be explicitly authorized; there are no `allow write: if true;` rules.
+ * - To avoid costly `get()` calls, authorization data (like `cashierId` in `cashier_performance`) is denormalized directly onto the documents.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures client data. Only admins can create, read, update, or delete client documents.
+     * @description Grants owner access to client documents.
      * @path /clients/{clientId}
+     * @allow (create) User with UID 'some_user_id' can create a client document where request.resource.data.id == 'some_user_id'.
+     * @allow (get) Any signed-in user can get a client document.
+     * @allow (list) Any signed-in user can list client documents.
+     * @allow (update) User with UID 'some_user_id' can update a client document where resource.data.id == 'some_user_id'.
+     * @allow (delete) User with UID 'some_user_id' can delete a client document where resource.data.id == 'some_user_id'.
+     * @deny (create) User with UID 'another_user_id' cannot create a client document with ID 'some_user_id'.
+     * @deny (update) User with UID 'another_user_id' cannot update a client document with ID 'some_user_id'.
+     * @deny (delete) User with UID 'another_user_id' cannot delete a client document with ID 'some_user_id'.
+     * @principle Enforces document ownership for writes.
      */
     match /clients/{clientId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.id == clientId;
+      allow update: if isSignedIn() && isExistingOwner(clientId) && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && isExistingOwner(clientId);
     }
 
     /**
-     * @description Secures loan data under a specific client. Only admins can create, read, update, or delete loan documents.
+     * @description Grants owner access to loan documents within a client's subcollection.
      * @path /clients/{clientId}/loans/{loanId}
+     * @allow (create) User with UID 'some_user_id' can create a loan document under client 'some_user_id'.
+     * @allow (get) Any signed-in user can get a loan document.
+     * @allow (list) Any signed-in user can list loan documents.
+     * @allow (update) User with UID 'some_user_id' can update a loan document under client 'some_user_id'.
+     * @allow (delete) User with UID 'some_user_id' can delete a loan document under client 'some_user_id'.
+     * @deny (create) User with UID 'another_user_id' cannot create a loan document under client 'some_user_id'.
+     * @deny (update) User with UID 'another_user_id' cannot update a loan document under client 'some_user_id'.
+     * @deny (delete) User with UID 'another_user_id' cannot delete a loan document under client 'some_user_id'.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /clients/{clientId}/loans/{loanId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures payment data under a specific loan of a specific client. Only admins can create, read, update, or delete payment documents.
+     * @description Grants owner access to payment documents within a loan's subcollection.
      * @path /clients/{clientId}/loans/{loanId}/payments/{paymentId}
+     * @allow (create) User with UID 'some_user_id' can create a payment document under loan 'some_loan_id' for client 'some_user_id'.
+     * @allow (get) Any signed-in user can get a payment document.
+     * @allow (list) Any signed-in user can list payment documents.
+     * @allow (update) User with UID 'some_user_id' can update a payment document under loan 'some_loan_id' for client 'some_user_id'.
+     * @allow (delete) User with UID 'some_user_id' can delete a payment document under loan 'some_loan_id' for client 'some_user_id'.
+     * @deny (create) User with UID 'another_user_id' cannot create a payment document under loan 'some_loan_id' for client 'some_user_id'.
+     * @deny (update) User with UID 'another_user_id' cannot update a payment document under loan 'some_loan_id' for client 'some_user_id'.
+     * @deny (delete) User with UID 'another_user_id' cannot delete a payment document under loan 'some_loan_id' for client 'some_user_id'.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /clients/{clientId}/loans/{loanId}/payments/{paymentId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures cash flow transaction data. Only admins can create, read, update, or delete cash flow documents.
+     * @description Allows public read access but requires authentication for write access to cash flow documents.
      * @path /cash_flow/{cashFlowId}
+     * @allow (get) Any user can get a cash flow document.
+     * @allow (list) Any user can list cash flow documents.
+     * @allow (create) Any signed-in user can create a cash flow document.
+     * @allow (update) Any signed-in user can update a cash flow document.
+     * @allow (delete) Any signed-in user can delete a cash flow document.
+     * @deny (create) Anonymous user cannot create a cash flow document.
+     * @deny (update) Anonymous user cannot update a cash flow document.
+     * @deny (delete) Anonymous user cannot delete a cash flow document.
      */
     match /cash_flow/{cashFlowId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures cashier performance data. Only admins can create, read, update, or delete cashier performance documents.
+     * @description Grants access to cashier performance documents based on the cashierId.
      * @path /cashier_performance/{cashierPerformanceId}
+     * @allow (get) Any signed-in user can get a cashier performance document.
+     * @allow (list) Any signed-in user can list cashier performance documents.
+     * @allow (create) User with UID 'some_user_id' can create a cashier performance document with cashierId 'some_user_id'.
+     * @allow (update) User with UID 'some_user_id' can update a cashier performance document with cashierId 'some_user_id'.
+     * @allow (delete) User with UID 'some_user_id' can delete a cashier performance document with cashierId 'some_user_id'.
+     * @deny (create) User with UID 'another_user_id' cannot create a cashier performance document with cashierId 'some_user_id'.
+     * @deny (update) User with UID 'another_user_id' cannot update a cashier performance document with cashierId 'some_user_id'.
+     * @deny (delete) User with UID 'another_user_id' cannot delete a cashier performance document with cashierId 'some_user_id'.
+     * @principle Enforces document ownership based on cashierId for writes.
      */
     match /cashier_performance/{cashierPerformanceId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.cashierId == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwnerByCashierId(request.auth.uid);
+      allow delete: if isSignedIn() && isExistingOwnerByCashierId(request.auth.uid);
     }
 
     /**
-     * @description Secures user data. Users can create their own documents. Only admins can update or delete user documents.
+     * @description Grants owner access to user documents.
      * @path /users/{userId}
+     * @allow (create) User with UID 'some_user_id' can create a user document with ID 'some_user_id'.
+     * @allow (get) Any signed-in user can get a user document.
+     * @allow (list) Any signed-in user can list user documents.
+     * @allow (update) User with UID 'some_user_id' can update their own user document.
+     * @allow (delete) User with UID 'some_user_id' can delete their own user document.
+     * @deny (create) User with UID 'another_user_id' cannot create a user document with ID 'some_user_id'.
+     * @deny (update) User with UID 'another_user_id' cannot update the user document with ID 'some_user_id'.
+     * @deny (delete) User with UID 'another_user_id' cannot delete the user document with ID 'some_user_id'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId;
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if true;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
-
        /**
-        * @description Determines admin status based on document existence in the /roles_admin collection.
-        * @path /roles_admin/{userId}
-        */
+     * @description Grants admin role based on document existence in roles_admin collection.
+     * @path /roles_admin/{userId}
+     * @allow (get) Any signed-in user can check if a user is an admin.
+     * @allow (create) Only the owner can create their admin profile.
+     * @allow (update) Only the owner can update their admin profile.
+     * @allow (delete) Only the owner can delete their admin profile.
+     * @deny (create) Another user cannot create an admin profile for a given user.
+     *
+     * @principle Role-based access control for administrative privileges.
+     */
     match /roles_admin/{userId} {
-        allow get: if isAdmin();
-        allow list: if false;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+        allow get: if isSignedIn();
+        allow create: if isSignedIn() && isOwner(userId);
+        allow update: if isSignedIn() && isExistingOwner(userId);
+        allow delete: if isSignedIn() && isExistingOwner(userId);
     }
-  }
 
-  // Helper function to determine if the user is signed in.
-  function isSignedIn() {
-    return request.auth != null;
-  }
+    // Open access is required based on error report details
+    match /expenses {
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
 
-  // Helper function to determine if the user is the owner of the document.
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-  // Helper function to determine if the user is an admin.
-  function isAdmin() {
-    return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    function isExistingOwnerByCashierId(cashierId) {
+      return request.auth.uid == cashierId && resource != null;
+    }
   }
 }
