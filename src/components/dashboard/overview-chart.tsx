@@ -7,10 +7,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { getChartData } from '@/lib/data';
 import { format } from 'date-fns';
-
-const chartData = getChartData();
 
 const chartConfig = {
   Loans: {
@@ -23,12 +20,12 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export default function OverviewChart() {
+export default function OverviewChart({ data }: { data: any[] }) {
   return (
     <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
       <BarChart
         accessibilityLayer
-        data={chartData}
+        data={data}
         margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
       >
         <CartesianGrid vertical={false} />

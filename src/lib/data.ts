@@ -67,25 +67,25 @@ export const transactions: Transaction[] = [
 // Data Calculation Functions
 const isToday = (date: string) => new Date(date).toDateString() === today.toDateString();
 
-export const calculateTotalLoans = (filter: 'all' | 'today' = 'all') => {
+export const calculateTotalLoans = (loans: Loan[], filter: 'all' | 'today' = 'all') => {
   return loans
     .filter(l => filter === 'all' || isToday(l.issueDate))
     .reduce((sum, loan) => sum + loan.principal, 0);
 };
 
-export const calculateTotalRepayments = (filter: 'all' | 'today' = 'all') => {
+export const calculateTotalRepayments = (payments: Payment[], filter: 'all' | 'today' = 'all') => {
   return payments
     .filter(p => filter === 'all' || isToday(p.paymentDate))
     .reduce((sum, payment) => sum + payment.amount, 0);
 };
 
-export const calculateTotalExpenses = (filter: 'all' | 'today' = 'all') => {
+export const calculateTotalExpenses = (expenses: Expense[], filter: 'all' | 'today' = 'all') => {
   return expenses
     .filter(e => filter === 'all' || isToday(e.date))
     .reduce((sum, expense) => sum + expense.amount, 0);
 };
 
-export const getChartData = () => {
+export const getChartData = (loans: Loan[], payments: Payment[]) => {
   const data = [];
   for (let i = 6; i >= 0; i--) {
     const date = subDays(today, i);
@@ -108,7 +108,7 @@ export const getChartData = () => {
   return data;
 };
 
-export const getRecentActivity = (limit: number = 5): Activity[] => {
+export const getRecentActivity = (loans: Loan[], payments: Payment[], expenses: Expense[], clients: Client[], limit: number = 5): Activity[] => {
     const combined: Activity[] = [
         ...loans.map(l => ({
             type: 'Loan' as const,

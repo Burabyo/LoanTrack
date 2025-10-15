@@ -1,3 +1,7 @@
+'use client';
+import { useMemo } from 'react';
+import { collection } from 'firebase/firestore';
+import { useCollection, useFirestore } from '@/firebase';
 import {
   Card,
   CardContent,
@@ -9,18 +13,40 @@ import {
   calculateTotalLoans,
   calculateTotalExpenses,
   getRecentActivity,
+  getChartData,
 } from '@/lib/data';
 import StatCard from '@/components/dashboard/stat-card';
 import { DollarSign, Landmark, TrendingDown, Users } from 'lucide-react';
 import OverviewChart from '@/components/dashboard/overview-chart';
 import { RecentActivityTable } from '@/components/dashboard/recent-activity-table';
+import type { Loan, Payment, Expense, Client } from '@/lib/types';
 
 export default function DashboardPage() {
-  const totalLoans = calculateTotalLoans();
-  const totalRepayments = calculateTotalRepayments();
-  const totalExpenses = calculateTotalExpenses();
+  const firestore = useFirestore();
+
+  const loansRef = useMemo(() => collection(firestore, 'loans'), [firestore]);
+  const paymentsRef = useMemo(() => collection(firestore, 'payments'), [firestore]);
+  const expensesRef = useMemo(() => collection(firestore, 'expenses'), [firestore]);
+  const clientsRef = useMemo(() => collection(firestore, 'clients'), [firestore]);
+
+  const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef as any);
+  const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef as any);
+  const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef as any);
+  const { data: clientsData, isLoading: clientsLoading } = useCollection<Client>(clientsRef as any);
+
+  const isLoading = loansLoading || paymentsLoading || expensesLoading || clientsLoading;
+
+  const totalLoans = useMemo(() => calculateTotalLoans(loansData || []), [loansData]);
+  const totalRepayments = useMemo(() => calculateTotalRepayments(paymentsData || []), [paymentsData]);
+  const totalExpenses = useMemo(() => calculateTotalExpenses(expensesData || []), [expensesData]);
   const netCashFlow = totalRepayments - (totalLoans + totalExpenses);
-  const recentActivity = getRecentActivity(5);
+  
+  const recentActivity = useMemo(() => getRecentActivity(loansData || [], paymentsData || [], expensesData || [], clientsData || [], 5), [loansData, paymentsData, expensesData, clientsData]);
+  const chartData = useMemo(() => getChartData(loansData || [], paymentsData || []), [loansData, paymentsData]);
+
+  if (isLoading) {
+    return <div>Loading dashboard...</div>;
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -61,7 +87,7 @@ export default function DashboardPage() {
             <CardTitle>Overview</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <OverviewChart />
+            <OverviewChart data={chartData} />
           </CardContent>
         </Card>
         <Card className="col-span-1 lg:col-span-2">

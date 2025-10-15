@@ -16,16 +16,24 @@ import {
   Sparkles,
   Cog,
   LifeBuoy,
+  LogOut,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useAuth, useUser } from '@/firebase';
 
 const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar');
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user } = useUser();
+  const auth = useAuth();
+
+  const handleSignOut = () => {
+    auth.signOut();
+  };
 
   const menuItems = [
     {
@@ -100,25 +108,35 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
+             <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Logout" onClick={handleSignOut}>
+                  <LogOut />
+                  <span>Logout</span>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
         </div>
       </SidebarMenu>
 
        <SidebarFooter>
         <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent">
           <Avatar className="h-9 w-9">
-            <AvatarImage
-              src={userAvatar?.imageUrl}
-              alt="User Avatar"
-              data-ai-hint={userAvatar?.imageHint}
-            />
-            <AvatarFallback>U</AvatarFallback>
+            {user?.photoURL ? (
+              <AvatarImage src={user.photoURL} alt="User Avatar" />
+            ) : (
+              <AvatarImage
+                src={userAvatar?.imageUrl}
+                alt="User Avatar"
+                data-ai-hint={userAvatar?.imageHint}
+              />
+            )}
+            <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-sidebar-accent-foreground">
-              Admin User
+              {user?.displayName || user?.email || 'User'}
             </span>
             <span className="text-xs text-muted-foreground">
-              admin@loantrack.pro
+              {user?.email}
             </span>
           </div>
         </div>
