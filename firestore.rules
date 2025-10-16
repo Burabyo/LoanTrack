@@ -1,161 +1,158 @@
-/**
- * @file Overview
- * This ruleset enforces a strict user-ownership model and role-based access control for sensitive data.
- *
- * Data Structure:
- * - Clients: Stored in `/clients/{clientId}`.
- * - Loans: Stored in `/clients/{clientId}/loans/{loanId}`.
- * - Payments: Stored in `/clients/{clientId}/loans/{loanId}/payments/{paymentId}`.
- * - Cash Flow: Stored in `/cash_flow/{cashFlowId}`.
- * - Cashier Performance: Stored in `/cashier_performance/{cashierPerformanceId}`.
- * - Users: Stored in `/users/{userId}`.
- * - Admin Roles: Stored in `/roles_admin/{userId}`.
- *
- * Key Security Decisions:
- * - Listing of clients and cash flow is disallowed.
- * - User documents can only be created by themselves.
- * - Admin role is determined by the existence of a document in `/roles_admin/{userId}`.
- * - Read and write access to client, loan, and payment information is implicitly denied to non-owners.
- *
- * Denormalization for Authorization:
- * - Loan documents contain `clientId` for authorization within the `/clients/{clientId}/loans/{loanId}` path.
- * - Payment documents contain `loanId` and `clientId` for authorization within the `/clients/{clientId}/loans/{loanId}/payments/{paymentId}` path.
- * - Cashier Performance documents contain `cashierId` for authorization.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows read access to admin roles.
-     * @path /roles_admin/{userId}
-     * @allow (get) User with matching userId to the document ID.
-     * @deny (get) User with non matching userId to the document ID.
-     * @principle Enforces user ownership for reads.
-     */
-    match /roles_admin/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /**
-     * @description Allows users to read and write their own user documents.
-     * @path /users/{userId}
-     * @allow (create) User with matching userId to the document ID.
-     * @deny (create) User with non matching userId to the document ID.
-     * @principle Enforces user ownership for writes.
-     */
-    match /users/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.auth.uid == userId;
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
-    }
-
-    /**
-     * @description Allows access to client documents.
+     * @description Secures the /clients collection, ensuring only admins can access client data.
      * @path /clients/{clientId}
-     * @allow (get) Anyone
-     * @deny (create) Anyone
-     * @principle Allows public read access but restricts modifications
+     * @allow (get) If the user is an admin.
+     * @deny (get) If the user is not an admin.
+     * @allow (list) If the user is an admin.
+     * @deny (list) If the user is not an admin.
+     * @principle Requires admin role for all access to client data.
      */
     match /clients/{clientId} {
-      allow get: if true;
-      allow list: if false;
+      allow get: if isAdmin();
+      allow list: if isAdmin();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Manages access to loan documents under a specific client.
+     * @description Secures the /clients/{clientId}/loans collection, ensuring only admins can manage client loans.
      * @path /clients/{clientId}/loans/{loanId}
-     * @allow (get) Anyone
-     * @deny (create) Anyone
-     * @principle Allows public read access but restricts modifications
+     * @allow (get) If the user is an admin.
+     * @deny (get) If the user is not an admin.
+     * @allow (list) If the user is an admin.
+     * @deny (list) If the user is not an admin.
+     * @principle Requires admin role for all access to loan data.
      */
     match /clients/{clientId}/loans/{loanId} {
-      allow get: if true;
-      allow list: if false;
+      allow get: if isAdmin();
+      allow list: if isAdmin();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Controls access to payment documents within a specific loan of a client.
+     * @description Secures the /clients/{clientId}/loans/{loanId}/payments collection, ensuring only admins can manage loan payments.
      * @path /clients/{clientId}/loans/{loanId}/payments/{paymentId}
-     * @allow (get) Anyone
-     * @deny (create) Anyone
-     * @principle Allows public read access but restricts modifications
+     * @allow (get) If the user is an admin.
+     * @deny (get) If the user is not an admin.
+     * @allow (list) If the user is an admin.
+     * @deny (list) If the user is not an admin.
+     * @principle Requires admin role for all access to payment data.
      */
     match /clients/{clientId}/loans/{loanId}/payments/{paymentId} {
-      allow get: if true;
-      allow list: if false;
+      allow get: if isAdmin();
+      allow list: if isAdmin();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Defines security rules for cash flow documents.
+     * @description Secures the /cash_flow collection, allowing only admins to manage cash flow transactions.
      * @path /cash_flow/{cashFlowId}
-     * @allow (get) Anyone
-     * @deny (create) Anyone
-     * @principle Allows public read access but restricts modifications
+     * @allow (get) If the user is an admin.
+     * @deny (get) If the user is not an admin.
+     * @allow (list) If the user is an admin.
+     * @deny (list) If the user is not an admin.
+     * @principle Requires admin role for all cash flow data access.
      */
     match /cash_flow/{cashFlowId} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Secures the /cashier_performance collection, restricting access to admins only.
+     * @path /cashier_performance/{cashierPerformanceId}
+     * @allow (get) If the user is an admin.
+     * @deny (get) If the user is not an admin.
+     * @allow (list) If the user is an admin.
+     * @deny (list) If the user is not an admin.
+     * @principle Requires admin role for access to cashier performance data.
+     */
+    match /cashier_performance/{cashierPerformanceId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Secures the /users collection, allowing users to create their own profiles and admins to read/manage all profiles.
+     * @path /users/{userId}
+     * @allow (create) If the user is creating their own profile (userId matches auth.uid).
+     * @allow (get) If the user is an admin or the user is the owner of the profile.
+     * @deny (get) If the user is not an admin.
+     * @allow (list) If the user is an admin.
+     * @deny (list) If the user is not an admin.
+     * @allow (update) If the user is an admin or the user is the owner of the profile.
+     * @deny (update) If the user is not an admin.
+     * @principle Enforces self-creation and admin-only management of user profiles.
+     */
+    match /users/{userId} {
+      allow get: if isAdmin() || isOwner(userId);
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isAdmin() || isOwner(userId);
       allow delete: if false;
     }
 
     /**
-     * @description Secures cashier performance data, allowing access only to the cashier and admins.
-     * @path /cashier_performance/{cashierPerformanceId}
-     * @allow (get) Anyone
-     * @deny (create) Anyone
-     * @principle Allows public read access but restricts modifications
+     * @description Secures the /roles_admin collection, allowing only admins to manage admin roles.
+     * @path /roles_admin/{userId}
+     * @allow (get) If the user is an admin.
+     * @deny (get) If the user is not an admin.
+     * @allow (list) If the user is an admin.
+     * @deny (list) If the user is not an admin.
+     * @allow (create) If the user is an admin.
+     * @deny (create) If the user is not an admin.
+     * @allow (update) If the user is an admin.
+     * @deny (update) If the user is not an admin.
+     * @principle Requires admin role for all modifications.
      */
-    match /cashier_performance/{cashierPerformanceId} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
-   /**
-     * @description Secures expenses data, allowing access only to authenticated users.
-     * @path /expenses
-     * @allow (list) Authenticated users can list expenses.
-     */
-    match /expenses {
-      allow get: if false;
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
+    // ----- Helper functions -----
 
-    // --- Helper functions ---
+    /**
+     * @description Checks if the user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
+     */
     function isSignedIn() {
       return request.auth != null;
     }
 
+    /**
+     * @description Checks if the user is an admin.
+     * @return {boolean} True if the user has a document in the `roles_admin` collection, false otherwise.
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * @description Checks if the authenticated user ID matches the provided user ID.
+     * @param {string} userId - The user ID to compare against.
+     * @return {boolean} True if the user is the owner, false otherwise.
+     */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+        return request.auth.uid == userId;
     }
-
-    function isExistingOwner(userId) {
-        return (isOwner(userId) && resource != null);
-    }
-
   }
 }
