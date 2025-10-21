@@ -226,7 +226,8 @@
         },
         "role": {
           "type": "string",
-          "description": "Role of the user (e.g., cashier, manager)."
+          "description": "Role of the user (e.g., cashier, admin).",
+          "enum": ["cashier", "admin"]
         }
       },
       "required": [
@@ -252,13 +253,7 @@
           "schema": {
             "$ref": "#/backend/entities/Client"
           },
-          "description": "Stores client information. Each client document is uniquely identified by clientId.",
-          "params": [
-            {
-              "name": "clientId",
-              "description": "Unique identifier for the client."
-            }
-          ]
+          "description": "Stores client information. Each client document is uniquely identified by clientId."
         }
       },
       {
@@ -268,17 +263,7 @@
           "schema": {
             "$ref": "#/backend/entities/Loan"
           },
-          "description": "Stores loan information for a specific client. Includes denormalized clientId for authorization independence.",
-          "params": [
-            {
-              "name": "clientId",
-              "description": "Unique identifier for the client."
-            },
-            {
-              "name": "loanId",
-              "description": "Unique identifier for the loan."
-            }
-          ]
+          "description": "Stores loan information for a specific client."
         }
       },
       {
@@ -288,21 +273,7 @@
           "schema": {
             "$ref": "#/backend/entities/Payment"
           },
-          "description": "Stores payment information for a specific loan of a specific client. Includes denormalized loanId and clientId for authorization independence.",
-          "params": [
-            {
-              "name": "clientId",
-              "description": "Unique identifier for the client."
-            },
-            {
-              "name": "loanId",
-              "description": "Unique identifier for the loan."
-            },
-            {
-              "name": "paymentId",
-              "description": "Unique identifier for the payment."
-            }
-          ]
+          "description": "Stores payment information for a specific loan of a specific client."
         }
       },
       {
@@ -312,13 +283,7 @@
           "schema": {
             "$ref": "#/backend/entities/CashFlow"
           },
-          "description": "Stores cash flow transactions.",
-          "params": [
-            {
-              "name": "cashFlowId",
-              "description": "Unique identifier for the cash flow transaction."
-            }
-          ]
+          "description": "Stores cash flow transactions."
         }
       },
       {
@@ -328,13 +293,7 @@
           "schema": {
             "$ref": "#/backend/entities/CashierPerformance"
           },
-          "description": "Stores cashier performance data. Includes cashierId for authorization.",
-          "params": [
-            {
-              "name": "cashierPerformanceId",
-              "description": "Unique identifier for the cashier performance record."
-            }
-          ]
+          "description": "Stores cashier performance data."
         }
       },
       {
@@ -344,32 +303,21 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user information.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            }
-          ]
+          "description": "Stores user information."
         }
       },
       {
         "path": "/roles_admin/{userId}",
         "definition": {
-          "entityName": "roles_admin",
+          "entityName": "User",
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Documents in this collection represent admin users. Existence of a document indicates admin role.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the admin user."
-            }
-          ]
+          "description": "Documents in this collection represent admin users. Existence of a document indicates admin role."
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, support QAPs, and maintain data integrity. It leverages path-based ownership for user-related data and denormalization to avoid hierarchical authorization dependencies. The design incorporates structural segregation to maintain homogeneous security postures within collections. The CashierPerformance data utilizes denormalization to include relevant cashier information, enabling secure and efficient data retrieval for performance analysis. Explicit state modeling is encouraged (e.g., client 'status').\n\nAuthorization Independence is achieved by avoiding `get()` calls in security rules. For instance, the `loans` subcollection under each `client` denormalizes client information, allowing loan documents to be created and accessed independently of the parent client document.  Similarly, cashier performance data includes the cashierId, enabling rules to validate access based solely on this denormalized data.  This makes atomic operations possible and simplifies debugging.\n\nQAPs are supported by structural segregation.  Private data (e.g., client loans and payments) are stored under the respective client's document, ensuring that listing loans requires authorization for that specific client.  Global roles are managed through dedicated collections (`roles_admin`), enabling efficient role-based access control without requiring document reads in rules. The structure also allows secure listing operations as each collection maintains a homogeneous security posture. For instance, listing loans under a specific client is secure because all documents in that subcollection share the same security requirements. The use of dedicated collections for roles eliminates filtering requirements in rules, as membership is determined by document existence."
+    "reasoning": "The Firestore structure is designed to be secure and scalable. It uses role-based access control where 'admins' have broad permissions and 'cashiers' have limited permissions. Admins are identified by checking for their UID in the '/roles_admin' collection, a secure method that prevents users from elevating their own privileges. Cashier access is restricted to managing clients, loans, and payments, which aligns with their responsibilities. The performance and cash flow data are restricted to admins to protect sensitive business information. This separation of concerns in the data model and security rules ensures a robust and secure application."
   }
 }
+    
