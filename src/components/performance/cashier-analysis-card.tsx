@@ -1,6 +1,6 @@
 'use client';
 
-import type { Cashier, Transaction } from '@/lib/types';
+import type { Cashier, Transaction, User } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Card,
@@ -13,18 +13,15 @@ import {
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type CashierAnalysisCardProps = {
-  cashier: Cashier & { transactions: Transaction[] };
-  averageTransactionValue: number;
-  averageTransactionCount: number;
+  cashier: User & { transactions: Transaction[] };
 };
 
 export function CashierAnalysisCard({
   cashier,
 }: CashierAnalysisCardProps) {
-
-  const cashierAvatar = PlaceHolderImages.find(
-    (img) => img.id === `cashier-${cashier.avatarUrl}`
-  );
+  // A simple way to get an avatar ID from the user's name
+  const avatarId = `cashier-${(cashier.username.charCodeAt(0) % 3) + 1}`;
+  const cashierAvatar = PlaceHolderImages.find((img) => img.id === avatarId);
 
   const transactionCount = cashier.transactions.length;
   const totalValue = cashier.transactions.reduce((sum, t) => sum + t.amount, 0);
@@ -36,13 +33,13 @@ export function CashierAnalysisCard({
         <Avatar className="h-16 w-16 border">
           <AvatarImage
             src={cashierAvatar?.imageUrl}
-            alt={cashier.name}
+            alt={cashier.username}
             data-ai-hint={cashierAvatar?.imageHint}
           />
-          <AvatarFallback>{cashier.name.charAt(0)}</AvatarFallback>
+          <AvatarFallback>{cashier.username.charAt(0)}</AvatarFallback>
         </Avatar>
         <div>
-          <CardTitle className="font-headline">{cashier.name}</CardTitle>
+          <CardTitle className="font-headline">{cashier.username}</CardTitle>
           <CardDescription>Cashier ID: {cashier.id}</CardDescription>
         </div>
       </CardHeader>

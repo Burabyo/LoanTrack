@@ -1,33 +1,64 @@
+'use client';
+
+import { useMemo } from 'react';
+import { collection } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import type { Cashier, Transaction, User } from '@/lib/types';
 import { CashierAnalysisCard } from '@/components/performance/cashier-analysis-card';
-import { cashiers, transactions } from '@/lib/data';
 
 export default function PerformancePage() {
-  // Calculate averages across all transactions
-  const totalTransactionValue = transactions.reduce(
-    (sum, t) => sum + t.amount,
-    0
-  );
-  const averageTransactionValue =
-    transactions.length > 0 ? totalTransactionValue / transactions.length : 0;
+  const firestore = useFirestore();
 
-  const cashiersWithTransactions = cashiers.map((cashier) => {
-    const cashierTransactions = transactions.filter(
-      (t) => t.cashierId === cashier.id
-    );
+  const usersRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
+  const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersRef);
+
+  const transactionsRef = useMemoFirebase(() => collection(firestore, 'transactions'), [firestore]);
+  const { data: transactionsData, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsRef);
+
+  const isLoading = usersLoading || transactionsLoading;
+
+  const cashiers = useMemo(() => {
+    return usersData?.filter(user => user.role === 'cashier') || [];
+  }, [usersData]);
+
+  const { cashiersWithTransactions, averageTransactionValue, averageTransactionCount } = useMemo(() => {
+    if (!transactionsData || !cashiers) {
+      return {
+        cashiersWithTransactions: [],
+        averageTransactionValue: 0,
+        averageTransactionCount: 0,
+      };
+    }
+
+    const totalTransactionValue = transactionsData.reduce((sum, t) => sum + t.amount, 0);
+    const avgTransactionValue = transactionsData.length > 0 ? totalTransactionValue / transactionsData.length : 0;
+    const avgTransactionCount = cashiers.length > 0 ? transactionsData.length / cashiers.length : 0;
+
+    const populatedCashiers = cashiers.map((cashier) => {
+      const cashierTransactions = transactionsData.filter(t => t.cashierId === cashier.id);
+      return {
+        ...cashier,
+        transactions: cashierTransactions,
+      };
+    });
+
     return {
-      ...cashier,
-      transactions: cashierTransactions,
+      cashiersWithTransactions: populatedCashiers,
+      averageTransactionValue: avgTransactionValue,
+      averageTransactionCount: avgTransactionCount,
     };
-  });
-  
-  const averageTransactionCount = transactions.length / cashiers.length;
+  }, [transactionsData, cashiers]);
+
+  if (isLoading) {
+    return <div>Loading performance data...</div>;
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="text-center">
         <h1 className="text-3xl font-bold font-headline">Cashier Performance</h1>
         <p className="text-muted-foreground">
-          Analyze cashier performance using AI-powered insights.
+          Review key performance metrics for each cashier.
         </p>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -35,8 +66,6 @@ export default function PerformancePage() {
           <CashierAnalysisCard
             key={cashier.id}
             cashier={cashier}
-            averageTransactionValue={averageTransactionValue}
-            averageTransactionCount={averageTransactionCount}
           />
         ))}
       </div>

@@ -36,10 +36,11 @@ export type Expense = {
   date: string;
 };
 
-export type Cashier = {
+export type User = {
   id: string;
-  name: string;
-  avatarUrl: string;
+  username: string;
+  email: string | null;
+  role: 'cashier' | 'manager';
 };
 
 export type Transaction = {
