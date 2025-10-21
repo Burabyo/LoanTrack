@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export default function ClientsPage() {
   const firestore = useFirestore();
 
-  const clientsRef = useMemoFirebase(() => collection(firestore, 'clients'), [firestore]);
+  const clientsRef = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
   const { data: clients, isLoading } = useCollection<Client>(clientsRef);
 
   if (isLoading) {

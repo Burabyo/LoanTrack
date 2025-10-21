@@ -23,7 +23,8 @@ const statusColorMap: Record<Client['status'], string> = {
 
 export const columns: ColumnDef<Client>[] = [
   {
-    accessorKey: 'name',
+    accessorFn: (row) => `${row.firstName} ${row.lastName}`,
+    id: 'name',
     header: ({ column }) => {
       return (
         <Button
@@ -50,15 +51,15 @@ export const columns: ColumnDef<Client>[] = [
     }
   },
   {
-    accessorKey: 'type',
+    accessorKey: 'isNewClient',
     header: 'Client Type',
     cell: ({ row }) => {
-      const type = row.getValue('type') as string;
-      return <Badge variant={type === 'returning' ? "default" : "secondary"} className="capitalize">{type}</Badge>;
+      const isNew = row.getValue('isNewClient') as boolean;
+      return <Badge variant={!isNew ? "default" : "secondary"} className="capitalize">{isNew ? 'New' : 'Returning'}</Badge>;
     },
   },
   {
-    accessorKey: 'phone',
+    accessorKey: 'phoneNumber',
     header: 'Phone Number',
   },
 ];

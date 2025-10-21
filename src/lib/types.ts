@@ -1,8 +1,9 @@
 export type Client = {
   id: string;
-  name: string;
-  phone: string;
-  type: 'new' | 'returning';
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  isNewClient: boolean;
   status: 'good' | 'default' | 'overdue' | 'delinquent';
 };
 

@@ -7,21 +7,24 @@ import { Input } from '@/components/ui/input';
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  filterColumn?: string;
 }
 
 export function DataTableToolbar<TData>({
   table,
+  filterColumn = 'name',
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
+  const filterColumnValue = table.getColumn(filterColumn)?.getFilterValue() as string ?? '';
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
         <Input
           placeholder="Filter records..."
-          value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
+          value={filterColumnValue}
           onChange={(event) =>
-            table.getColumn('name')?.setFilterValue(event.target.value)
+            table.getColumn(filterColumn)?.setFilterValue(event.target.value)
           }
           className="h-8 w-[150px] lg:w-[250px]"
         />
