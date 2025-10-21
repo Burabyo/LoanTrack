@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useState } from 'react';
 import { RecordPaymentForm } from './record-payment-form';
+import Link from 'next/link';
 
 const statusVariantMap: Record<Loan['status'], 'default' | 'secondary' | 'outline'> = {
   active: 'default',
@@ -44,7 +45,9 @@ export function LoanActions({ loan }: { loan: Loan & { clientName: string } }) {
           <DropdownMenuItem onClick={() => setIsPaymentFormOpen(true)}>
             Record Payment
           </DropdownMenuItem>
-          <DropdownMenuItem>View Loan Details</DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/loans/${loan.id}`}>View Loan Details</Link>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </>
