@@ -44,6 +44,7 @@ export function RecordPaymentForm({ isOpen, onOpenChange, loan }: RecordPaymentF
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      amount: '' as unknown as number, // Set a default value to prevent uncontrolled input warning
       paymentDate: new Date(),
     },
   });
