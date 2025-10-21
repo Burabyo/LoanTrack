@@ -11,20 +11,21 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth, useUser } from '@/firebase';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [role, setRole] = useState<'cashier' | 'admin'>('cashier');
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
@@ -37,46 +38,73 @@ export default function SignupPage() {
   }, [user, isUserLoading, router]);
 
   const handleSignUp = async () => {
-    try {
-        await initiateEmailSignUp(auth, email, password);
-        // This part will run after the user is created
-        // We need to wait for the user to be available in the auth state
-    } catch (error) {
-        console.error("Sign up failed", error);
-    }
+    // Initiate the sign-up process.
+    // The user document creation will be handled by the useEffect below.
+    initiateEmailSignUp(auth, email, password);
   };
 
   useEffect(() => {
-    if (user && firstName && lastName) {
-        const userRef = doc(firestore, 'users', user.uid);
-        setDocumentNonBlocking(userRef, {
+    // This effect runs when the `user` object changes after signup.
+    if (user && firestore && firstName && lastName) {
+      // Create the main user profile document.
+      const userRef = doc(firestore, 'users', user.uid);
+      setDocumentNonBlocking(
+        userRef,
+        {
+          id: user.uid,
+          username: `${firstName} ${lastName}`,
+          email: user.email,
+          role: role,
+        },
+        { merge: true }
+      );
+
+      // If the user signed up as an admin, create a record in `roles_admin`.
+      // This is what the security rules will check for admin privileges.
+      if (role === 'admin') {
+        const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+        setDocumentNonBlocking(
+          adminRoleRef,
+          {
             id: user.uid,
             username: `${firstName} ${lastName}`,
             email: user.email,
-            role: 'cashier' // default role
-        }, { merge: true });
+            role: 'admin',
+          },
+          { merge: true }
+        );
+      }
     }
-  }, [user, firstName, lastName, firestore]);
-
+  }, [user, firestore, firstName, lastName, role]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Sign Up</CardTitle>
-          <CardDescription>
-            Create an account to get started.
-          </CardDescription>
+          <CardDescription>Create an account to get started.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="first-name">First name</Label>
-              <Input id="first-name" placeholder="Max" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Input
+                id="first-name"
+                placeholder="Max"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="last-name">Last name</Label>
-              <Input id="last-name" placeholder="Robinson" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <Input
+                id="last-name"
+                placeholder="Robinson"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
             </div>
           </div>
           <div className="grid gap-2">
@@ -99,6 +127,23 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>Role</Label>
+            <RadioGroup
+              defaultValue="cashier"
+              className="flex gap-4"
+              onValueChange={(value) => setRole(value as 'cashier' | 'admin')}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="cashier" id="cashier" />
+                <Label htmlFor="cashier">Cashier</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="admin" id="admin" />
+                <Label htmlFor="admin">Admin</Label>
+              </div>
+            </RadioGroup>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
