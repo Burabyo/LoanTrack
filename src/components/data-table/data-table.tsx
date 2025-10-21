@@ -28,12 +28,14 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   filterColumn?: string;
+  newRecordButton?: React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   filterColumn,
+  newRecordButton,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] =
@@ -56,7 +58,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} filterColumn={filterColumn} />
+      <DataTableToolbar table={table} filterColumn={filterColumn} newRecordButton={newRecordButton} />
       <div className="rounded-md border">
         <Table>
           <TableHeader>

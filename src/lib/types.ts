@@ -17,7 +17,6 @@ export type Loan = {
   totalRepayable: number;
   amountDisbursed: number;
   amountPaid: number;
-ax
   issueDate: string;
   dueDate: string;
   status: 'active' | 'paid' | 'overdue';
