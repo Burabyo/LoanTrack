@@ -25,6 +25,7 @@ export type Loan = {
 export type Payment = {
   id: string;
   loanId: string;
+  clientId: string;
   amount: number;
   paymentDate: string;
 };
@@ -45,7 +46,7 @@ export type User = {
 };
 
 export type Transaction = {
-  id: string;
+  id:string;
   cashierId: string;
   type: 'loan_disbursed' | 'repayment' | 'expense';
   amount: number;
