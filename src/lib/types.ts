@@ -3,6 +3,7 @@ export type Client = {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  address: string;
   isNewClient: boolean;
   status: 'good' | 'default' | 'overdue' | 'delinquent';
 };
@@ -16,6 +17,7 @@ export type Loan = {
   totalRepayable: number;
   amountDisbursed: number;
   amountPaid: number;
+ax
   issueDate: string;
   dueDate: string;
   status: 'active' | 'paid' | 'overdue';
@@ -40,7 +42,7 @@ export type User = {
   id: string;
   username: string;
   email: string | null;
-  role: 'cashier' | 'manager';
+  role: 'cashier' | 'admin';
 };
 
 export type Transaction = {

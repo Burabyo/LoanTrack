@@ -1,15 +1,18 @@
 'use client';
-import { useMemo } from 'react';
-import { collection, query, where } from 'firebase/firestore';
+import { useState, useMemo } from 'react';
+import { collection } from 'firebase/firestore';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { columns } from '@/components/loans/columns';
 import { DataTable } from '@/components/data-table/data-table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Loan, Client } from '@/lib/types';
+import { AddLoanForm } from '@/components/loans/add-loan-form';
+import { Button } from '@/components/ui/button';
+import { PlusCircle } from 'lucide-react';
 
 export default function LoansPage() {
   const firestore = useFirestore();
-  const { user } = useUser();
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans') : null, [firestore]);
   const clientsRef = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
@@ -41,7 +44,26 @@ export default function LoansPage() {
         <CardTitle>Loan Management</CardTitle>
       </CardHeader>
       <CardContent>
-        <DataTable columns={columns} data={loansWithClientNames as (Loan & { clientName: string })[]} filterColumn="clientName" />
+        <DataTable
+          columns={columns}
+          data={loansWithClientNames as (Loan & { clientName: string })[]}
+          filterColumn="clientName"
+          newRecordButton={
+            <AddLoanForm
+              isOpen={isFormOpen}
+              onOpenChange={setIsFormOpen}
+              clients={clients || []}
+              trigger={
+                <Button size="sm" className="h-8 gap-1" onClick={() => setIsFormOpen(true)}>
+                  <PlusCircle className="h-3.5 w-3.5" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    New Loan
+                  </span>
+                </Button>
+              }
+            />
+          }
+        />
       </CardContent>
     </Card>
   );

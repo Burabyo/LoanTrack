@@ -1,28 +1,31 @@
 'use client';
 
-import { Table } from '@tanstack/react-table';
+import type { Table } from '@tanstack/react-table';
 import { PlusCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import type { ReactNode } from 'react';
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
   filterColumn?: string;
+  newRecordButton?: ReactNode;
 }
 
 export function DataTableToolbar<TData>({
   table,
   filterColumn = 'name',
+  newRecordButton,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
-  const filterColumnValue = table.getColumn(filterColumn)?.getFilterValue() as string ?? '';
+  const filterValue = (table.getColumn(filterColumn)?.getFilterValue() as string) ?? '';
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
         <Input
           placeholder="Filter records..."
-          value={filterColumnValue}
+          value={filterValue}
           onChange={(event) =>
             table.getColumn(filterColumn)?.setFilterValue(event.target.value)
           }
@@ -39,12 +42,7 @@ export function DataTableToolbar<TData>({
           </Button>
         )}
       </div>
-      <Button size="sm" className="h-8 gap-1">
-        <PlusCircle className="h-3.5 w-3.5" />
-        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-          New Record
-        </span>
-      </Button>
+      {newRecordButton}
     </div>
   );
 }
