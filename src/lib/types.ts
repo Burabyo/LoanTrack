@@ -59,4 +59,8 @@ export type Activity = {
     description: string;
     amount: number;
     date: string;
+};
+
+export type AppUser = User & {
+    role: 'admin' | 'cashier';
 }

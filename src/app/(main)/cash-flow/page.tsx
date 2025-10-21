@@ -1,7 +1,7 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { collection } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { CashFlowSummary } from '@/components/cash-flow/summary';
 import {
   Card,
@@ -11,9 +11,18 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { Loan, Payment, Expense } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 export default function CashFlowPage() {
   const firestore = useFirestore();
+  const { appUser, isUserLoading: isAuthLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthLoading && appUser?.role !== 'admin') {
+      router.push('/');
+    }
+  }, [appUser, isAuthLoading, router]);
 
   const loansRef = useMemoFirebase(() => collection(firestore, 'loans'), [firestore]);
   const paymentsRef = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
@@ -23,9 +32,9 @@ export default function CashFlowPage() {
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
 
-  const isLoading = loansLoading || paymentsLoading || expensesLoading;
+  const isLoading = loansLoading || paymentsLoading || expensesLoading || isAuthLoading;
 
-  if (isLoading) {
+  if (isLoading || appUser?.role !== 'admin') {
     return <div>Loading cash flow...</div>;
   }
 

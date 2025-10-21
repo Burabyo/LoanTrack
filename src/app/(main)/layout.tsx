@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function MainLayout({ children }: { children: ReactNode }) {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, appUser } = useUser();
   const router = useRouter();
 
   useEffect(() => {

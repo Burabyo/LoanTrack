@@ -29,45 +29,55 @@ const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar');
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, appUser } = useUser();
   const auth = useAuth();
 
   const handleSignOut = () => {
     auth.signOut();
   };
 
+  const isAdmin = appUser?.role === 'admin';
+
   const menuItems = [
     {
       href: '/',
       label: 'Dashboard',
       icon: LayoutDashboard,
+      roles: ['admin', 'cashier'],
     },
     {
       href: '/clients',
       label: 'Clients',
       icon: Users,
+      roles: ['admin', 'cashier'],
     },
     {
       href: '/loans',
       label: 'Loans',
       icon: Landmark,
+      roles: ['admin', 'cashier'],
     },
     {
       href: '/payments',
       label: 'Payments',
       icon: Wallet,
+      roles: ['admin', 'cashier'],
     },
     {
       href: '/cash-flow',
       label: 'Cash Flow',
       icon: ArrowRightLeft,
+      roles: ['admin'],
     },
     {
       href: '/performance',
       label: 'Performance',
       icon: Sparkles,
+      roles: ['admin'],
     },
   ];
+
+  const visibleMenuItems = menuItems.filter(item => item.roles.includes(isAdmin ? 'admin' : 'cashier'));
 
   return (
     <Sidebar>
@@ -82,7 +92,7 @@ export function AppSidebar() {
 
       <SidebarMenu className="flex-1 justify-between">
         <div className="flex flex-col gap-2">
-          {menuItems.map((item) => (
+          {visibleMenuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <Link href={item.href} className="w-full">
                 <SidebarMenuButton
@@ -139,10 +149,10 @@ export function AppSidebar() {
           </Avatar>
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-sidebar-accent-foreground">
-              {user?.displayName || user?.email || 'User'}
+              {user?.displayName || appUser?.username || user?.email || 'User'}
             </span>
             <span className="text-xs text-muted-foreground">
-              {user?.email}
+              {appUser?.role && <span className="capitalize">{appUser.role}</span>}
             </span>
           </div>
         </div>

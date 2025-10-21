@@ -1,13 +1,23 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { collection } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import type { Cashier, Transaction, User } from '@/lib/types';
 import { CashierAnalysisCard } from '@/components/performance/cashier-analysis-card';
+import { useRouter } from 'next/navigation';
+
 
 export default function PerformancePage() {
   const firestore = useFirestore();
+  const { appUser, isUserLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && appUser?.role !== 'admin') {
+      router.push('/');
+    }
+  }, [appUser, isUserLoading, router]);
 
   const usersRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersRef);
@@ -15,7 +25,7 @@ export default function PerformancePage() {
   const transactionsRef = useMemoFirebase(() => collection(firestore, 'transactions'), [firestore]);
   const { data: transactionsData, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsRef);
 
-  const isLoading = usersLoading || transactionsLoading;
+  const isLoading = usersLoading || transactionsLoading || isUserLoading;
 
   const cashiers = useMemo(() => {
     return usersData?.filter(user => user.role === 'cashier') || [];
@@ -49,7 +59,7 @@ export default function PerformancePage() {
     };
   }, [transactionsData, cashiers]);
 
-  if (isLoading) {
+  if (isLoading || appUser?.role !== 'admin') {
     return <div>Loading performance data...</div>;
   }
 
