@@ -26,6 +26,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';
+import { Label } from '@/components/ui/label';
 
 function LoanDetail({
   label,
