@@ -15,7 +15,6 @@ import {
   ArrowRightLeft,
   Sparkles,
   Cog,
-  LifeBuoy,
   LogOut,
   Wallet,
   Receipt,
@@ -116,16 +115,8 @@ export function AppSidebar() {
 
         <div className="flex flex-col gap-2">
            <SidebarMenuItem>
-              <Link href="#" className="w-full">
-                <SidebarMenuButton tooltip="Support">
-                  <LifeBuoy />
-                  <span>Support</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-           <SidebarMenuItem>
-              <Link href="#" className="w-full">
-                <SidebarMenuButton tooltip="Settings">
+              <Link href="/settings" className="w-full">
+                <SidebarMenuButton tooltip="Settings" isActive={pathname === '/settings'}>
                   <Cog />
                   <span>Settings</span>
                 </SidebarMenuButton>
