@@ -20,14 +20,15 @@ import { DollarSign, Landmark, TrendingDown, Users } from 'lucide-react';
 import OverviewChart from '@/components/dashboard/overview-chart';
 import { RecentActivityTable } from '@/components/dashboard/recent-activity-table';
 import type { Loan, Payment, Expense, Client } from '@/lib/types';
+import { OverdueLoansCard } from '@/components/dashboard/overdue-loans-card';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
 
-  const loansRef = useMemoFirebase(() => collection(firestore, 'loans'), [firestore]);
-  const paymentsRef = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
-  const expensesRef = useMemoFirebase(() => collection(firestore, 'expenses'), [firestore]);
-  const clientsRef = useMemoFirebase(() => collection(firestore, 'clients'), [firestore]);
+  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans') : null, [firestore]);
+  const paymentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'payments') : null, [firestore]);
+  const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses') : null, [firestore]);
+  const clientsRef = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
 
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
@@ -43,6 +44,19 @@ export default function DashboardPage() {
   
   const recentActivity = useMemo(() => getRecentActivity(loansData || [], paymentsData || [], expensesData || [], clientsData || [], 5), [loansData, paymentsData, expensesData, clientsData]);
   const chartData = useMemo(() => getChartData(loansData || [], paymentsData || []), [loansData, paymentsData]);
+
+  const overdueLoans = useMemo(() => {
+    if (!loansData || !clientsData) return [];
+    return loansData
+      .filter(loan => loan.status === 'overdue' || (new Date(loan.dueDate) < new Date() && loan.status !== 'paid'))
+      .map(loan => {
+        const client = clientsData.find(c => c.id === loan.clientId);
+        return {
+          ...loan,
+          clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown Client',
+        };
+      });
+  }, [loansData, clientsData]);
 
   if (isLoading) {
     return <div>Loading dashboard...</div>;
@@ -82,14 +96,17 @@ export default function DashboardPage() {
         />
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <Card className="col-span-1 lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <OverviewChart data={chartData} />
-          </CardContent>
-        </Card>
+        <div className="col-span-1 lg:col-span-3 flex flex-col gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <OverviewChart data={chartData} />
+              </CardContent>
+            </Card>
+            <OverdueLoansCard loans={overdueLoans} />
+        </div>
         <Card className="col-span-1 lg:col-span-2">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
