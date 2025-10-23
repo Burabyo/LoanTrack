@@ -32,7 +32,8 @@
         },
         "status": {
           "type": "string",
-          "description": "Status of the client (e.g., good, overdue, skipping payments)."
+          "description": "Status of the client (e.g., good, overdue, skipping payments).",
+          "enum": ["good", "default", "overdue", "delinquent"]
         }
       },
       "required": [
@@ -84,6 +85,11 @@
         "totalRepayable": {
           "type": "number",
           "description": "Total amount repayable (principal + interest + fees)."
+        },
+        "status": {
+            "type": "string",
+            "description": "The status of the loan.",
+            "enum": ["active", "paid", "overdue"]
         }
       },
       "required": [
@@ -94,7 +100,8 @@
         "processingFeeRate",
         "issueDate",
         "dueDate",
-        "totalRepayable"
+        "totalRepayable",
+        "status"
       ]
     },
     "Payment": {
@@ -111,6 +118,10 @@
           "type": "string",
           "description": "Reference to Loan. (Relationship: Loan 1:N Payment)"
         },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to Client. (Relationship: Client 1:1 Payment)"
+        },
         "paymentDate": {
           "type": "string",
           "description": "Date when the payment was made.",
@@ -124,6 +135,7 @@
       "required": [
         "id",
         "loanId",
+        "clientId",
         "paymentDate",
         "amountPaid"
       ]
@@ -201,8 +213,7 @@
         "cashierId",
         "transactionDate",
         "transactionType",
-        "amount",
-        "notes"
+        "amount"
       ]
     },
     "User": {
@@ -257,7 +268,7 @@
         }
       },
       {
-        "path": "/clients/{clientId}/loans/{loanId}",
+        "path": "/loans/{loanId}",
         "definition": {
           "entityName": "Loan",
           "schema": {
@@ -267,7 +278,7 @@
         }
       },
       {
-        "path": "/clients/{clientId}/loans/{loanId}/payments/{paymentId}",
+        "path": "/payments/{paymentId}",
         "definition": {
           "entityName": "Payment",
           "schema": {
@@ -320,4 +331,3 @@
     "reasoning": "The Firestore structure is designed to be secure and scalable. It uses role-based access control where 'admins' have broad permissions and 'cashiers' have limited permissions. Admins are identified by checking for their UID in the '/roles_admin' collection, a secure method that prevents users from elevating their own privileges. Cashier access is restricted to managing clients, loans, and payments, which aligns with their responsibilities. The performance and cash flow data are restricted to admins to protect sensitive business information. This separation of concerns in the data model and security rules ensures a robust and secure application."
   }
 }
-    

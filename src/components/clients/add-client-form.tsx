@@ -24,7 +24,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { addDocumentNonBlocking, useFirestore } from '@/firebase';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   firstName: z.string().min(2, {
@@ -49,6 +50,7 @@ type AddClientFormProps = {
 
 export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,15 +62,36 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) return;
+    
+    // Check if client with the same phone number already exists
     const clientsRef = collection(firestore, 'clients');
+    const q = query(clientsRef, where('phoneNumber', '==', values.phoneNumber));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      // Client already exists
+      toast({
+        title: 'Client Exists',
+        description: "A client with this phone number is already registered. To issue a new loan, please go to the 'Loans' page.",
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Client is new, add them to the database
     addDocumentNonBlocking(clientsRef, {
       ...values,
       isNewClient: true,
       status: 'good',
       createdAt: serverTimestamp(),
     });
+    
+    toast({
+      title: 'Client Added',
+      description: `${values.firstName} ${values.lastName} has been successfully added.`
+    })
     form.reset();
     onOpenChange(false);
   }
@@ -80,7 +103,7 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
         <DialogHeader>
           <DialogTitle>Add New Client</DialogTitle>
           <DialogDescription>
-            Enter the details of the new client. Click save when you're done.
+            Enter the details of the new client. The system will check for duplicates based on the phone number.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

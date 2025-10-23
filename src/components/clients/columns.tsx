@@ -6,13 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
 
-const statusVariantMap: Record<Client['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  good: 'secondary',
-  default: 'outline',
-  overdue: 'default',
-  delinquent: 'destructive',
-};
-
 const statusColorMap: Record<Client['status'], string> = {
   good: 'bg-green-500',
   default: 'bg-gray-500',
@@ -62,4 +55,8 @@ export const columns: ColumnDef<Client>[] = [
     accessorKey: 'phoneNumber',
     header: 'Phone Number',
   },
+  {
+    accessorKey: 'address',
+    header: 'Address',
+  }
 ];

@@ -20,6 +20,7 @@ export type Loan = {
   issueDate: string;
   dueDate: string;
   status: 'active' | 'paid' | 'overdue';
+  clientName?: string;
 };
 
 export type Payment = {
