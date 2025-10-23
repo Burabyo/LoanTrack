@@ -1,9 +1,8 @@
 'use client';
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect } from 'react';
 import { collection } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { CashFlowSummary } from '@/components/cash-flow/summary';
-import { AddExpenseForm } from '@/components/cash-flow/add-expense-form';
 import {
   Card,
   CardContent,
@@ -13,14 +12,11 @@ import {
 } from '@/components/ui/card';
 import type { Loan, Payment, Expense } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
 
 export default function CashFlowPage() {
   const firestore = useFirestore();
   const { appUser, isUserLoading: isAuthLoading } = useUser();
   const router = useRouter();
-  const [isFormOpen, setIsFormOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthLoading && appUser?.role !== 'admin') {
@@ -45,25 +41,11 @@ export default function CashFlowPage() {
   return (
     <div className="flex justify-center">
        <Card className="w-full max-w-4xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
+        <CardHeader>
             <CardTitle>Daily Cash Flow</CardTitle>
             <CardDescription>
               Summary of today's financial movements.
             </CardDescription>
-          </div>
-          <AddExpenseForm
-            isOpen={isFormOpen}
-            onOpenChange={setIsFormOpen}
-            trigger={
-              <Button size="sm" className="h-8 gap-1" onClick={() => setIsFormOpen(true)}>
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  New Expense
-                </span>
-              </Button>
-            }
-          />
         </CardHeader>
         <CardContent>
           <CashFlowSummary 

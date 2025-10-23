@@ -18,6 +18,7 @@ import {
   LifeBuoy,
   LogOut,
   Wallet,
+  Receipt,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -61,6 +62,12 @@ export function AppSidebar() {
       href: '/payments',
       label: 'Payments',
       icon: Wallet,
+      roles: ['admin', 'cashier'],
+    },
+    {
+      href: '/expenses',
+      label: 'Expenses',
+      icon: Receipt,
       roles: ['admin', 'cashier'],
     },
     {
