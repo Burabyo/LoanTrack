@@ -126,7 +126,7 @@ export default function CashierDetailsPage() {
           <CardTitle>Loans Issued</CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable filterColumn={undefined} columns={loansColumns} data={loansWithClientNames as (Loan & { clientName: string; })[]} />
+          <DataTable filterColumn="clientName" columns={loansColumns} data={loansWithClientNames as (Loan & { clientName: string; })[]} />
         </CardContent>
       </Card>
       
@@ -135,7 +135,7 @@ export default function CashierDetailsPage() {
           <CardTitle>Payments Received</CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable filterColumn={undefined} columns={paymentsColumns} data={paymentsWithClientNames as (Payment & { clientName: string; })[]} />
+          <DataTable filterColumn="clientName" columns={paymentsColumns} data={paymentsWithClientNames as (Payment & { clientName: string; })[]} />
         </CardContent>
       </Card>
 
@@ -144,7 +144,7 @@ export default function CashierDetailsPage() {
           <CardTitle>Expenses Recorded</CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable filterColumn={undefined} columns={expensesColumns} data={expenses || []} />
+          <DataTable filterColumn="description" columns={expensesColumns} data={expenses || []} />
         </CardContent>
       </Card>
     </div>
