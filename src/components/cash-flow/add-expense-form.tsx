@@ -30,7 +30,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { addDocumentNonBlocking, useFirestore } from '@/firebase';
+import { addDocumentNonBlocking, useFirestore, useUser } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { Textarea } from '../ui/textarea';
 
@@ -52,6 +52,7 @@ type AddExpenseFormProps = {
 
 export function AddExpenseForm({ isOpen, onOpenChange, trigger }: AddExpenseFormProps) {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -63,12 +64,13 @@ export function AddExpenseForm({ isOpen, onOpenChange, trigger }: AddExpenseForm
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!firestore) return;
+    if (!firestore || !user) return;
 
     const expensesRef = collection(firestore, 'expenses');
     addDocumentNonBlocking(expensesRef, {
       ...values,
       date: new Date().toISOString(),
+      cashierId: user.uid,
       createdAt: serverTimestamp(),
     });
 

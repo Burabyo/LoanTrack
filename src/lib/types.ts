@@ -21,6 +21,7 @@ export type Loan = {
   dueDate: string;
   status: 'active' | 'paid' | 'overdue';
   clientName?: string;
+  cashierId: string;
 };
 
 export type Payment = {
@@ -29,6 +30,7 @@ export type Payment = {
   clientId: string;
   amount: number;
   paymentDate: string;
+  cashierId: string;
 };
 
 export type Expense = {
@@ -37,6 +39,7 @@ export type Expense = {
   description: string;
   amount: number;
   date: string;
+  cashierId: string;
 };
 
 export type User = {

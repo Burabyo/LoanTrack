@@ -38,7 +38,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { addDocumentNonBlocking, useFirestore } from '@/firebase';
+import { addDocumentNonBlocking, useFirestore, useUser } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
@@ -67,6 +67,7 @@ type AddLoanFormProps = {
 
 export function AddLoanForm({ isOpen, onOpenChange, trigger, clients }: AddLoanFormProps) {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -80,7 +81,7 @@ export function AddLoanForm({ isOpen, onOpenChange, trigger, clients }: AddLoanF
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     const loansRef = collection(firestore, 'loans');
     
     const principal = values.amount;
@@ -100,6 +101,7 @@ export function AddLoanForm({ isOpen, onOpenChange, trigger, clients }: AddLoanF
       amountDisbursed,
       amountPaid: 0,
       status: 'active',
+      cashierId: user.uid,
       createdAt: serverTimestamp(),
     });
     form.reset();

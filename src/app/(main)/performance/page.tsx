@@ -3,7 +3,7 @@
 import { useMemo, useEffect } from 'react';
 import { collection } from 'firebase/firestore';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import type { Cashier, Transaction, User } from '@/lib/types';
+import type { User, Loan, Payment, Expense } from '@/lib/types';
 import { CashierAnalysisCard } from '@/components/performance/cashier-analysis-card';
 import { useRouter } from 'next/navigation';
 
@@ -21,43 +21,40 @@ export default function PerformancePage() {
 
   const usersRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersRef);
+  
+  const loansRef = useMemoFirebase(() => collection(firestore, 'loans'), [firestore]);
+  const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
 
-  const transactionsRef = useMemoFirebase(() => collection(firestore, 'transactions'), [firestore]);
-  const { data: transactionsData, isLoading: transactionsLoading } = useCollection<Transaction>(transactionsRef);
+  const paymentsRef = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
+  const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
 
-  const isLoading = usersLoading || transactionsLoading || isUserLoading;
+  const expensesRef = useMemoFirebase(() => collection(firestore, 'expenses'), [firestore]);
+  const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
+
+  const isLoading = usersLoading || loansLoading || paymentsLoading || expensesLoading || isUserLoading;
 
   const cashiers = useMemo(() => {
     return usersData?.filter(user => user.role === 'cashier') || [];
   }, [usersData]);
 
-  const { cashiersWithTransactions, averageTransactionValue, averageTransactionCount } = useMemo(() => {
-    if (!transactionsData || !cashiers) {
-      return {
-        cashiersWithTransactions: [],
-        averageTransactionValue: 0,
-        averageTransactionCount: 0,
-      };
+  const cashiersWithData = useMemo(() => {
+    if (!loansData || !paymentsData || !expensesData) {
+      return [];
     }
 
-    const totalTransactionValue = transactionsData.reduce((sum, t) => sum + t.amount, 0);
-    const avgTransactionValue = transactionsData.length > 0 ? totalTransactionValue / transactionsData.length : 0;
-    const avgTransactionCount = cashiers.length > 0 ? transactionsData.length / cashiers.length : 0;
+    return cashiers.map((cashier) => {
+      const cashierLoans = loansData.filter(l => l.cashierId === cashier.id);
+      const cashierPayments = paymentsData.filter(p => p.cashierId === cashier.id);
+      const cashierExpenses = expensesData.filter(e => e.cashierId === cashier.id);
 
-    const populatedCashiers = cashiers.map((cashier) => {
-      const cashierTransactions = transactionsData.filter(t => t.cashierId === cashier.id);
       return {
         ...cashier,
-        transactions: cashierTransactions,
+        loans: cashierLoans,
+        payments: cashierPayments,
+        expenses: cashierExpenses,
       };
     });
-
-    return {
-      cashiersWithTransactions: populatedCashiers,
-      averageTransactionValue: avgTransactionValue,
-      averageTransactionCount: avgTransactionCount,
-    };
-  }, [transactionsData, cashiers]);
+  }, [cashiers, loansData, paymentsData, expensesData]);
 
   if (isLoading || appUser?.role !== 'admin') {
     return <div>Loading performance data...</div>;
@@ -72,7 +69,7 @@ export default function PerformancePage() {
         </p>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {cashiersWithTransactions.map((cashier) => (
+        {cashiersWithData.map((cashier) => (
           <CashierAnalysisCard
             key={cashier.id}
             cashier={cashier}

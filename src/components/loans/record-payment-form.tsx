@@ -22,7 +22,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { useFirestore, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, addDocumentNonBlocking, updateDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, serverTimestamp, doc } from 'firebase/firestore';
 import type { Loan } from '@/lib/types';
 import { format } from 'date-fns';
@@ -40,6 +40,7 @@ type RecordPaymentFormProps = {
 
 export function RecordPaymentForm({ isOpen, onOpenChange, loan }: RecordPaymentFormProps) {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -52,7 +53,7 @@ export function RecordPaymentForm({ isOpen, onOpenChange, loan }: RecordPaymentF
   const remainingBalance = loan.totalRepayable - loan.amountPaid;
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!firestore) return;
+    if (!firestore || !user) return;
 
     // 1. Add to payments collection
     const paymentsRef = collection(firestore, 'payments');
@@ -61,6 +62,7 @@ export function RecordPaymentForm({ isOpen, onOpenChange, loan }: RecordPaymentF
       clientId: loan.clientId,
       amount: values.amount,
       paymentDate: values.paymentDate.toISOString(),
+      cashierId: user.uid,
       createdAt: serverTimestamp(),
     });
 
