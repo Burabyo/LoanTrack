@@ -1,158 +1,86 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Secures the /clients collection, ensuring only admins can access client data.
-     * @path /clients/{clientId}
-     * @allow (get) If the user is an admin.
-     * @deny (get) If the user is not an admin.
-     * @allow (list) If the user is an admin.
-     * @deny (list) If the user is not an admin.
-     * @principle Requires admin role for all access to client data.
-     */
-    match /clients/{clientId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    // Helper function to check if a user is an admin
+    function isAdmin(userId) {
+      return exists(/databases/$(database)/documents/roles_admin/$(userId));
     }
 
-    /**
-     * @description Secures the /clients/{clientId}/loans collection, ensuring only admins can manage client loans.
-     * @path /clients/{clientId}/loans/{loanId}
-     * @allow (get) If the user is an admin.
-     * @deny (get) If the user is not an admin.
-     * @allow (list) If the user is an admin.
-     * @deny (list) If the user is not an admin.
-     * @principle Requires admin role for all access to loan data.
-     */
-    match /clients/{clientId}/loans/{loanId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    // Helper function to check if a user is a cashier
+    function isCashier(userId) {
+      let userRole = get(/databases/$(database)/documents/users/$(userId)).data.role;
+      return userRole == 'cashier';
     }
 
-    /**
-     * @description Secures the /clients/{clientId}/loans/{loanId}/payments collection, ensuring only admins can manage loan payments.
-     * @path /clients/{clientId}/loans/{loanId}/payments/{paymentId}
-     * @allow (get) If the user is an admin.
-     * @deny (get) If the user is not an admin.
-     * @allow (list) If the user is an admin.
-     * @deny (list) If the user is not an admin.
-     * @principle Requires admin role for all access to payment data.
-     */
-    match /clients/{clientId}/loans/{loanId}/payments/{paymentId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    // Admins can read everything
+    match /{document=**} {
+      allow read: if request.auth != null && isAdmin(request.auth.uid);
     }
-
-    /**
-     * @description Secures the /cash_flow collection, allowing only admins to manage cash flow transactions.
-     * @path /cash_flow/{cashFlowId}
-     * @allow (get) If the user is an admin.
-     * @deny (get) If the user is not an admin.
-     * @allow (list) If the user is an admin.
-     * @deny (list) If the user is not an admin.
-     * @principle Requires admin role for all cash flow data access.
-     */
-    match /cash_flow/{cashFlowId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    /**
-     * @description Secures the /cashier_performance collection, restricting access to admins only.
-     * @path /cashier_performance/{cashierPerformanceId}
-     * @allow (get) If the user is an admin.
-     * @deny (get) If the user is not an admin.
-     * @allow (list) If the user is an admin.
-     * @deny (list) If the user is not an admin.
-     * @principle Requires admin role for access to cashier performance data.
-     */
-    match /cashier_performance/{cashierPerformanceId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    /**
-     * @description Secures the /users collection, allowing users to create their own profiles and admins to read/manage all profiles.
-     * @path /users/{userId}
-     * @allow (create) If the user is creating their own profile (userId matches auth.uid).
-     * @allow (get) If the user is an admin or the user is the owner of the profile.
-     * @deny (get) If the user is not an admin.
-     * @allow (list) If the user is an admin.
-     * @deny (list) If the user is not an admin.
-     * @allow (update) If the user is an admin or the user is the owner of the profile.
-     * @deny (update) If the user is not an admin.
-     * @principle Enforces self-creation and admin-only management of user profiles.
-     */
+    
+    // Users Collection
     match /users/{userId} {
-      allow get: if isAdmin() || isOwner(userId);
-      allow list: if isAdmin();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isAdmin() || isOwner(userId);
-      allow delete: if false;
+      // Any authenticated user can create their own user document (on signup)
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Users can read their own profile, admins can read any profile
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin(request.auth.uid));
+      // Users can update their own username
+      allow update: if request.auth != null && request.auth.uid == userId && request.resource.data.keys().hasOnly(['username']);
     }
 
-    /**
-     * @description Secures the /roles_admin collection, allowing only admins to manage admin roles.
-     * @path /roles_admin/{userId}
-     * @allow (get) If the user is an admin.
-     * @deny (get) If the user is not an admin.
-     * @allow (list) If the user is an admin.
-     * @deny (list) If the user is not an admin.
-     * @allow (create) If the user is an admin.
-     * @deny (create) If the user is not an admin.
-     * @allow (update) If the user is an admin.
-     * @deny (update) If the user is not an admin.
-     * @principle Requires admin role for all modifications.
-     */
+    // Admin Roles Collection
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      // NO ONE can write to this collection from the client-side.
+      // This prevents users from making themselves admins.
+      // Admin roles must be assigned manually through the Firebase Console.
+      allow write: if false;
+      allow read: if request.auth != null && isAdmin(request.auth.uid);
     }
 
-    // ----- Helper functions -----
-
-    /**
-     * @description Checks if the user is signed in.
-     * @return {boolean} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
+    // Clients Collection
+    match /clients/{clientId} {
+      // Cashiers and Admins can create new clients
+      allow create: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid));
+      // Cashiers and Admins can read client data
+      allow read: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid));
+      // Cashiers and Admins can update client status
+      allow update: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid));
     }
 
-    /**
-     * @description Checks if the user is an admin.
-     * @return {boolean} True if the user has a document in the `roles_admin` collection, false otherwise.
-     */
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    // Loans Collection
+    match /loans/{loanId} {
+      // Cashiers and Admins can create loans, but only if they set themselves as the cashierId
+      allow create: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid)) && request.resource.data.cashierId == request.auth.uid;
+      // Cashiers and Admins can read loan data
+      allow read: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid));
+       // Cashiers and Admins can update loans (e.g., for payments)
+      allow update: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid));
     }
 
-    /**
-     * @description Checks if the authenticated user ID matches the provided user ID.
-     * @param {string} userId - The user ID to compare against.
-     * @return {boolean} True if the user is the owner, false otherwise.
-     */
-    function isOwner(userId) {
-        return request.auth.uid == userId;
+    // Payments Collection
+    match /payments/{paymentId} {
+       // Cashiers and Admins can create payments, but only if they set themselves as the cashierId
+      allow create: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid)) && request.resource.data.cashierId == request.auth.uid;
+      // Cashiers and Admins can read payment data
+      allow read: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid));
+    }
+    
+    // Expenses Collection
+    match /expenses/{expenseId} {
+       // Cashiers and Admins can create expenses, but only if they set themselves as the cashierId
+      allow create: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid)) && request.resource.data.cashierId == request.auth.uid;
+       // Cashiers and Admins can read expense data
+      allow read: if request.auth != null && (isCashier(request.auth.uid) || isAdmin(request.auth.uid));
+    }
+    
+    // Cash Flow & Performance are Admin-only collections
+    match /cash_flow/{cashFlowId} {
+      allow read, write: if request.auth != null && isAdmin(request.auth.uid);
+    }
+     match /cashier_performance/{perfId} {
+      allow read, write: if request.auth != null && isAdmin(request.auth.uid);
     }
   }
 }
