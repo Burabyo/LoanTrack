@@ -57,7 +57,7 @@ export function AddExpenseForm({ isOpen, onOpenChange, trigger }: AddExpenseForm
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: '',
-      amount: undefined,
+      amount: '' as unknown as number,
       category: undefined,
     },
   });
