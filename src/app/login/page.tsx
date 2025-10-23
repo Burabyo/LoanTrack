@@ -12,7 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useUser } from '@/firebase';
-import { initiateEmailSignIn, initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -32,10 +32,6 @@ export default function LoginPage() {
 
   const handleSignIn = () => {
     initiateEmailSignIn(auth, email, password);
-  };
-
-  const handleAnonymousSignIn = () => {
-    initiateAnonymousSignIn(auth);
   };
 
   return (
@@ -73,9 +69,6 @@ export default function LoginPage() {
         <CardFooter className="flex flex-col gap-4">
           <Button className="w-full" onClick={handleSignIn}>
             Sign in
-          </Button>
-          <Button variant="outline" className="w-full" onClick={handleAnonymousSignIn}>
-            Sign in anonymously
           </Button>
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{' '}
