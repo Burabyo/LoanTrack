@@ -35,7 +35,7 @@ const formSchema = z.object({
 type RecordPaymentFormProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  loan: Loan;
+  loan: Loan & { clientName?: string };
 };
 
 export function RecordPaymentForm({ isOpen, onOpenChange, loan }: RecordPaymentFormProps) {
@@ -45,7 +45,7 @@ export function RecordPaymentForm({ isOpen, onOpenChange, loan }: RecordPaymentF
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: '' as unknown as number, // Set a default value to prevent uncontrolled input warning
+      amount: '' as unknown as number,
       paymentDate: new Date(),
     },
   });
@@ -76,7 +76,10 @@ export function RecordPaymentForm({ isOpen, onOpenChange, loan }: RecordPaymentF
       status: newStatus,
     });
 
-    form.reset();
+    form.reset({
+      amount: '' as unknown as number,
+      paymentDate: new Date(),
+    });
     onOpenChange(false);
   }
 
