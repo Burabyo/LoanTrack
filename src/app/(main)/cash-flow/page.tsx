@@ -28,9 +28,9 @@ export default function CashFlowPage() {
     }
   }, [appUser, isAuthLoading, router]);
 
-  const loansRef = useMemoFirebase(() => collection(firestore, 'loans'), [firestore]);
-  const paymentsRef = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
-  const expensesRef = useMemoFirebase(() => collection(firestore, 'expenses'), [firestore]);
+  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans'): null, [firestore]);
+  const paymentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'payments'): null, [firestore]);
+  const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses'): null, [firestore]);
 
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
