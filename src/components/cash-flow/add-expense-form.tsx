@@ -83,7 +83,7 @@ export function AddExpenseForm({ isOpen, onOpenChange, trigger }: AddExpenseForm
         <DialogHeader>
           <DialogTitle>Add New Expense</DialogTitle>
           <DialogDescription>
-            Record a new operational expense.
+            Record a new operational expense for cashiers or the company.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
