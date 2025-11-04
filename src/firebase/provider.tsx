@@ -54,6 +54,13 @@ export const FirebaseContext = createContext<FirebaseContextState | undefined>(u
 /**
  * FirebaseProvider manages and provides Firebase services and user authentication state.
  */
+interface FirebaseProviderProps {
+  children: React.ReactNode;
+  firebaseApp: any;
+  firestore: any;
+  auth: any;
+}
+
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
   firebaseApp,

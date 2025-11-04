@@ -103,9 +103,11 @@ export default function LoanDetailsPage() {
           <CardContent className="space-y-4">
             <dl className="space-y-2">
               <LoanDetail label="Loan ID" value={loan.id} className="font-mono text-xs" />
-              <LoanDetail label="Status">
-                <Badge className="capitalize">{loan.status}</Badge>
-              </LoanDetail>
+            <LoanDetail
+  label="Status"
+  value={<Badge className="capitalize">{loan.status}</Badge>}
+/>
+
               <LoanDetail
                 label="Principal"
                 value={currencyFormatter.format(loan.principal)}
