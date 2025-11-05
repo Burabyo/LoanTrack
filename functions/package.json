@@ -1,9 +1,11 @@
 {
   "name": "functions",
-  "scripts": {
-    "start": "firebase emulators:start",
-    "deploy": "firebase deploy --only functions"
-  },
+ "scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start"
+},
+
   "engines": {
     "node": "20"
   },
