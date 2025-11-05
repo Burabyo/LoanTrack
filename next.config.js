@@ -1,12 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  distDir: '.next',   // default, no need for 'out'
   images: {
-    unoptimized: true // required if using Firebase Storage images
+    unoptimized: true,
   },
   experimental: {
-    optimizePackageImports: ['@radix-ui/react-*']
-  }
+    optimizePackageImports: ['@radix-ui/react-*'],
+  },
 };
 
 module.exports = nextConfig;
