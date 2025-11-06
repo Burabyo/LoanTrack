@@ -4,9 +4,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    optimizePackageImports: ['@radix-ui/react-*'],
-  },
+ experimental: {
+  appDir: true,
+  optimizePackageImports: ['@radix-ui/react-*'],
+},
 };
 
 module.exports = nextConfig;
