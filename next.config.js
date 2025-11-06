@@ -1,12 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'export', // tells Next.js to create a static export in the 'out' folder
-    distDir: 'out',
+  distDir: '.next',   // default, no need for 'out'
   images: {
-    unoptimized: true, // required for Firebase static hosting
+    unoptimized: true,
   },
   experimental: {
-    optimizePackageImports: ['@radix-ui/react-*'], // optional for Radix UI optimization
+    optimizePackageImports: ['@radix-ui/react-*'],
   },
 };
 
