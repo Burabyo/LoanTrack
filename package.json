@@ -6,8 +6,9 @@
     "dev": "next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "NODE_ENV=production next build",
-    "start": "next start",
+    "build": "cross-env NODE_ENV=production next build",
+
+    "start": "next start -p $PORT",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
@@ -43,6 +44,7 @@
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
+    "firebase-frameworks": "^0.11.8",
     "genkit": "^1.20.0",
     "lucide-react": "^0.475.0",
     "next": "15.3.3",
@@ -61,9 +63,10 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "cross-env": "^10.1.0",
     "genkit-cli": "^1.20.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "5.9.3"
   }
 }
