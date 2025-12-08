@@ -26,6 +26,7 @@ import {
 import { addDocumentNonBlocking, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '../ui/scroll-area';
 
 // ⭐ NEW FIELDS ADDED IN SCHEMA
 const formSchema = z.object({
@@ -122,8 +123,6 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-
-            {/* NAMES */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -138,7 +137,6 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="lastName"
@@ -153,8 +151,6 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 )}
               />
             </div>
-
-            {/* PHONE */}
             <FormField
               control={form.control}
               name="phoneNumber"
@@ -162,59 +158,12 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 <FormItem>
                   <FormLabel>Phone Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="0788xxxxxx" {...field} />
+                    <Input placeholder="555-123-4567" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {/* NEW FIELD: NATIONAL ID */}
-            <FormField
-              control={form.control}
-              name="nationalId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>National ID Number</FormLabel>
-                  <FormControl>
-                    <Input placeholder="1199xxxxxxxxxxxx" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* GUARANTOR NAME */}
-            <FormField
-              control={form.control}
-              name="guarantorName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Guarantor Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Guarantor full name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* GUARANTOR PHONE */}
-            <FormField
-              control={form.control}
-              name="guarantorPhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Guarantor Phone Number</FormLabel>
-                  <FormControl>
-                    <Input placeholder="07xxxxxxxx" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* ADDRESS */}
             <FormField
               control={form.control}
               name="address"
@@ -222,13 +171,12 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="Kigali, Rwanda" {...field} />
+                    <Input placeholder="123 Main St, Anytown USA" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="secondary">
