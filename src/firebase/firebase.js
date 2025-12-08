@@ -1,18 +1,22 @@
-import { initializeApp } from "firebase/app";
+// src/firebase/firebaseClient.js
+// Safe client-side Firebase initialization for Next.js + Vercel
+
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { firebaseConfig } from "./config";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+let firebaseApp = null;
+let db = null;
+let auth = null;
 
-const app = initializeApp(firebaseConfig);
+if (typeof window !== "undefined") {
+  // Only initialize Firebase in the browser
+  firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  db = getFirestore(firebaseApp);
+  auth = getAuth(firebaseApp);
+}
 
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-export default app;
+// Safe exports (server-side will see null, client-side will see real SDK)
+export { db, auth, firebaseApp };
+export default firebaseApp;
