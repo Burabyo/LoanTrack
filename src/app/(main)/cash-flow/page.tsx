@@ -24,15 +24,26 @@ export default function CashFlowPage() {
     }
   }, [appUser, isAuthLoading, router]);
 
-  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans'): null, [firestore]);
-  const paymentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'payments'): null, [firestore]);
-  const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses'): null, [firestore]);
+  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans') : null, [firestore]);
+  const paymentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'payments') : null, [firestore]);
+  const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses') : null, [firestore]);
+  
+  // ✅ NEW: investments collection
+  const investmentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'investments') : null, [firestore]);
 
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
 
-  const isLoading = loansLoading || paymentsLoading || expensesLoading || isAuthLoading;
+  // ✅ NEW: load investments
+  const { data: investmentsData, isLoading: investmentsLoading } = useCollection<any>(investmentsRef);
+
+  const isLoading = 
+    loansLoading || 
+    paymentsLoading || 
+    expensesLoading || 
+    investmentsLoading || 
+    isAuthLoading;
 
   if (isLoading || appUser?.role !== 'admin') {
     return <div>Loading cash flow...</div>;
@@ -40,11 +51,11 @@ export default function CashFlowPage() {
 
   return (
     <div className="flex justify-center">
-       <Card className="w-full max-w-4xl">
+      <Card className="w-full max-w-4xl">
         <CardHeader>
             <CardTitle>Daily Cash Flow</CardTitle>
             <CardDescription>
-              Summary of today's financial movements.
+              Summary of today&apos;s financial movements.
             </CardDescription>
         </CardHeader>
         <CardContent>
@@ -52,6 +63,7 @@ export default function CashFlowPage() {
             loans={loansData || []}
             payments={paymentsData || []}
             expenses={expensesData || []}
+            investments={investmentsData || []}  // ✅ NEW
           />
         </CardContent>
       </Card>

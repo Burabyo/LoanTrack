@@ -13,7 +13,6 @@ const statusColorMap: Record<Client['status'], string> = {
   delinquent: 'bg-red-500',
 };
 
-
 export const columns: ColumnDef<Client>[] = [
   {
     accessorFn: (row) => `${row.firstName} ${row.lastName}`,
@@ -34,13 +33,13 @@ export const columns: ColumnDef<Client>[] = [
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
-        const status = row.getValue('status') as Client['status'];
-        return (
-            <div className="flex items-center gap-2">
-                <span className={ `h-2 w-2 rounded-full ${statusColorMap[status]}` } />
-                <span className="capitalize">{status}</span>
-            </div>
-        )
+      const status = row.getValue('status') as Client['status'];
+      return (
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full ${statusColorMap[status]}`} />
+          <span className="capitalize">{status}</span>
+        </div>
+      );
     }
   },
   {
@@ -48,9 +47,34 @@ export const columns: ColumnDef<Client>[] = [
     header: 'Client Type',
     cell: ({ row }) => {
       const isNew = row.getValue('isNewClient') as boolean;
-      return <Badge variant={!isNew ? "default" : "secondary"} className="capitalize">{isNew ? 'New' : 'Returning'}</Badge>;
+      return (
+        <Badge
+          variant={!isNew ? "default" : "secondary"}
+          className="capitalize"
+        >
+          {isNew ? 'New' : 'Returning'}
+        </Badge>
+      );
     },
   },
+
+  // ⭐⭐⭐ NEW FIELDS FOR FEATURE 2 ⭐⭐⭐
+  {
+    accessorKey: 'nationalId',
+    header: 'National ID',
+  },
+
+  {
+    accessorKey: 'guarantorName',
+    header: 'Guarantor Name',
+  },
+
+  {
+    accessorKey: 'guarantorPhone',
+    header: 'Guarantor Phone',
+  },
+  // ⭐⭐⭐ END OF NEW FIELDS ⭐⭐⭐
+
   {
     accessorKey: 'phoneNumber',
     header: 'Phone Number',

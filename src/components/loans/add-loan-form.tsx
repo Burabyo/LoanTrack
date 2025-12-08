@@ -39,7 +39,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { addDocumentNonBlocking, useFirestore, useUser } from '@/firebase';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
 
@@ -80,17 +80,41 @@ export function AddLoanForm({ isOpen, onOpenChange, trigger, clients }: AddLoanF
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore || !user) return;
+
     const loansRef = collection(firestore, 'loans');
-    
+    const clientsRef = collection(firestore, 'clients');
+
+    // Find client object
+    const clientDoc = clients.find(c => c.id === values.clientId);
+
+    // Default: new client
+    let isNewClient = true;
+
+    if (clientDoc) {
+      // Check if client has any cleared loan
+      const clientLoansQuery = query(
+        loansRef,
+        where('clientId', '==', clientDoc.id),
+        where('status', '==', 'cleared')
+      );
+      const clientLoansSnapshot = await getDocs(clientLoansQuery);
+
+      if (!clientLoansSnapshot.empty) {
+        isNewClient = false; // Already had a loan → returning client
+      }
+    }
+
+    // Calculate loan details
     const principal = values.amount;
     const interest = principal * (values.interestRate / 100);
     const processingFee = principal * (values.processingFeeRate / 100);
     const totalRepayable = principal + interest;
     const amountDisbursed = principal - processingFee;
 
-    addDocumentNonBlocking(loansRef, {
+    // Save loan
+    await addDocumentNonBlocking(loansRef, {
       ...values,
       issueDate: values.issueDate.toISOString(),
       dueDate: values.dueDate.toISOString(),
@@ -104,6 +128,13 @@ export function AddLoanForm({ isOpen, onOpenChange, trigger, clients }: AddLoanF
       cashierId: user.uid,
       createdAt: serverTimestamp(),
     });
+
+    // Update client type in database
+    if (clientDoc) {
+      const clientRef = doc(firestore, 'clients', clientDoc.id);
+      await updateDoc(clientRef, { isNewClient });
+    }
+
     form.reset();
     onOpenChange(false);
   }
@@ -205,22 +236,13 @@ export function AddLoanForm({ isOpen, onOpenChange, trigger, clients }: AddLoanF
                               !field.value && 'text-muted-foreground'
                             )}
                           >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
+                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
+                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />
@@ -243,22 +265,13 @@ export function AddLoanForm({ isOpen, onOpenChange, trigger, clients }: AddLoanF
                               !field.value && 'text-muted-foreground'
                             )}
                           >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
+                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
+                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />

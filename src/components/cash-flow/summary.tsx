@@ -8,15 +8,16 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
-import type { Loan, Payment, Expense } from '@/lib/types';
+import type { Loan, Payment, Expense, Investment } from '@/lib/types';
 
 type CashFlowSummaryProps = {
     loans: Loan[];
     payments: Payment[];
     expenses: Expense[];
+    investments: any[]; // Adjust type as needed
 }
 
-export function CashFlowSummary({ loans, payments, expenses }: CashFlowSummaryProps) {
+export function CashFlowSummary({ loans, payments, expenses, investments}: CashFlowSummaryProps) {
   const openingBalance = 5000; // Mock opening balance
   const cashIn = calculateTotalRepayments(payments, 'today');
   const cashOutLoans = calculateTotalLoans(loans, 'today');
@@ -44,14 +45,14 @@ export function CashFlowSummary({ loans, payments, expenses }: CashFlowSummaryPr
                 item.isPositive ? 'text-green-500' : 'text-red-500'
                 }`}
             >
-                {item.isPositive ? '+' : '-'} ${item.value.toLocaleString()}
+                {item.isPositive ? '+' : '-'} UGX {item.value.toLocaleString()}
             </span>
             </div>
         ))}
         <Separator />
         <div className="flex items-center justify-between font-bold text-lg">
             <span>Closing Balance</span>
-            <span>${closingBalance.toLocaleString()}</span>
+            <span>UGX {closingBalance.toLocaleString()}</span>
         </div>
         </div>
 
@@ -69,7 +70,7 @@ export function CashFlowSummary({ loans, payments, expenses }: CashFlowSummaryPr
                                     <Badge variant="outline" className="text-xs capitalize">{expense.category}</Badge>
                                 </div>
                                 <p className="text-muted-foreground font-mono">
-                                    ${expense.amount.toFixed(2)}
+                                    UGX {expense.amount.toFixed(2)}
                                 </p>
                             </div>
                         )) : <p className="text-muted-foreground text-center">No expenses recorded today.</p>}

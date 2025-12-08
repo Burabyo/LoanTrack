@@ -37,7 +37,7 @@ export const columns: ColumnDef<Payment & { clientName: string }>[] = [
       const amount = parseFloat(row.getValue('amount'));
       const formatted = new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'USD',
+        currency: 'UGX',
       }).format(amount);
       return <div className="font-medium">{formatted}</div>;
     },

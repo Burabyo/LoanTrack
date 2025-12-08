@@ -27,6 +27,7 @@ import { addDocumentNonBlocking, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
+// ⭐ NEW FIELDS ADDED IN SCHEMA
 const formSchema = z.object({
   firstName: z.string().min(2, {
     message: 'First name must be at least 2 characters.',
@@ -36,6 +37,15 @@ const formSchema = z.object({
   }),
   phoneNumber: z.string().min(10, {
     message: 'Phone number must be at least 10 digits.',
+  }),
+  nationalId: z.string().min(16, {
+    message: 'National ID must be at least 16 digits.',
+  }),
+  guarantorName: z.string().min(3, {
+    message: 'Guarantor name must be at least 3 characters.',
+  }),
+  guarantorPhone: z.string().min(10, {
+    message: 'Guarantor phone must be at least 10 digits.',
   }),
   address: z.string().min(5, {
     message: 'Address must be at least 5 characters.',
@@ -58,6 +68,9 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
       firstName: '',
       lastName: '',
       phoneNumber: '',
+      nationalId: '',
+      guarantorName: '',
+      guarantorPhone: '',
       address: '',
     },
   });
@@ -65,22 +78,21 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) return;
     
-    // Check if client with the same phone number already exists
+    // Check if client with same phone exists
     const clientsRef = collection(firestore, 'clients');
     const q = query(clientsRef, where('phoneNumber', '==', values.phoneNumber));
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
-      // Client already exists
       toast({
         title: 'Client Exists',
-        description: "A client with this phone number is already registered. To issue a new loan, please go to the 'Loans' page.",
+        description: "This phone number already exists. To issue a new loan, go to the 'Loans' page.",
         variant: 'destructive'
       });
       return;
     }
 
-    // Client is new, add them to the database
+    // Add new client with NEW FIELDS included
     addDocumentNonBlocking(clientsRef, {
       ...values,
       isNewClient: true,
@@ -90,8 +102,9 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
     
     toast({
       title: 'Client Added',
-      description: `${values.firstName} ${values.lastName} has been successfully added.`
-    })
+      description: `${values.firstName} ${values.lastName} has been added successfully.`
+    });
+
     form.reset();
     onOpenChange(false);
   }
@@ -103,11 +116,14 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
         <DialogHeader>
           <DialogTitle>Add New Client</DialogTitle>
           <DialogDescription>
-            Enter the details of the new client. The system will check for duplicates based on the phone number.
+            Enter the details of the new client. The system checks for duplicates by phone number.
           </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+
+            {/* NAMES */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -122,6 +138,7 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="lastName"
@@ -136,6 +153,8 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 )}
               />
             </div>
+
+            {/* PHONE */}
             <FormField
               control={form.control}
               name="phoneNumber"
@@ -143,12 +162,59 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 <FormItem>
                   <FormLabel>Phone Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="555-123-4567" {...field} />
+                    <Input placeholder="0788xxxxxx" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* NEW FIELD: NATIONAL ID */}
+            <FormField
+              control={form.control}
+              name="nationalId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>National ID Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="1199xxxxxxxxxxxx" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* GUARANTOR NAME */}
+            <FormField
+              control={form.control}
+              name="guarantorName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Guarantor Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Guarantor full name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* GUARANTOR PHONE */}
+            <FormField
+              control={form.control}
+              name="guarantorPhone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Guarantor Phone Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="07xxxxxxxx" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* ADDRESS */}
             <FormField
               control={form.control}
               name="address"
@@ -156,22 +222,26 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Main St, Anytown USA" {...field} />
+                    <Input placeholder="Kigali, Rwanda" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">
-                        Cancel
-                    </Button>
-                </DialogClose>
-                <Button type="submit">Save Client</Button>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </DialogClose>
+
+              <Button type="submit">Save Client</Button>
             </DialogFooter>
+
           </form>
         </Form>
+
       </DialogContent>
     </Dialog>
   );

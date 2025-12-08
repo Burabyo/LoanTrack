@@ -58,7 +58,7 @@ export function OverdueLoansCard({ loans }: OverdueLoansCardProps) {
                     <TableCell className="font-medium">{loan.clientName}</TableCell>
                     <TableCell>{daysOverdue > 0 ? `${daysOverdue} days` : 'Today'}</TableCell>
                     <TableCell className="text-right font-mono">
-                      ${remainingBalance.toFixed(2)}
+                      UGX{remainingBalance.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>

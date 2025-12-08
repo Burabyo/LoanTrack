@@ -49,7 +49,7 @@ export function CashierAnalysisCard({
             <p className="text-muted-foreground">Loans Issued</p>
           </div>
           <div>
-            <p className="font-bold text-lg">${totalLoanValue.toLocaleString()}</p>
+            <p className="font-bold text-lg">UGX{totalLoanValue.toLocaleString()}</p>
             <p className="text-muted-foreground">Total Value</p>
           </div>
           <div>
@@ -59,7 +59,7 @@ export function CashierAnalysisCard({
         </div>
          <div className="flex justify-around text-center text-sm">
           <div>
-            <p className="font-bold text-lg">${totalPaymentValue.toLocaleString()}</p>
+            <p className="font-bold text-lg">UGX{totalPaymentValue.toLocaleString()}</p>
             <p className="text-muted-foreground">Payments Value</p>
           </div>
           <div>
@@ -67,7 +67,7 @@ export function CashierAnalysisCard({
             <p className="text-muted-foreground">Expenses</p>
           </div>
           <div>
-            <p className="font-bold text-lg">${totalExpenseValue.toFixed(2)}</p>
+            <p className="font-bold text-lg">UGX{totalExpenseValue.toFixed(2)}</p>
             <p className="text-muted-foreground">Expense Value</p>
           </div>
         </div>

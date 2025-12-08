@@ -68,3 +68,9 @@ export type Activity = {
 export type AppUser = User & {
     role: 'admin' | 'cashier';
 }
+
+export interface Investment {
+  amount: number;
+  date: string;
+  receivedFrom: string;
+}
