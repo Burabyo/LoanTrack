@@ -23,27 +23,35 @@ import type { Loan, Payment, Expense, Client } from '@/lib/types';
 import { OverdueLoansCard } from '@/components/dashboard/overdue-loans-card';
 import { getAuth } from 'firebase/auth';
 
+/**
+ * DashboardPage
+ *
+ * - Always calls hooks in same order (fixes React error #310)
+ * - Checks roles_admin/{uid} for admin status
+ * - Admins load full collections; cashiers load only cashierId == uid
+ */
+
 export default function DashboardPage() {
   const firestore = useFirestore();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = loading
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = loading role
   const [currentUid, setCurrentUid] = useState<string | null>(null);
 
-  // get current user uid from firebase auth (client)
+  // Get current user uid from firebase auth
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
     if (user) {
       setCurrentUid(user.uid);
-    } else {
-      // in case auth is async, listen for state change
-      const unsubscribe = auth.onAuthStateChanged(u => {
-        setCurrentUid(u ? u.uid : null);
-      });
-      return () => unsubscribe();
+      return;
     }
+    // listen for async auth state
+    const unsubscribe = auth.onAuthStateChanged(u => {
+      setCurrentUid(u ? u.uid : null);
+    });
+    return () => unsubscribe();
   }, []);
 
-  // check if user is admin by looking for roles_admin/{uid}
+  // Check admin doc existence (roles_admin/{uid})
   useEffect(() => {
     if (!firestore || !currentUid) return;
 
@@ -66,42 +74,49 @@ export default function DashboardPage() {
     };
   }, [firestore, currentUid]);
 
-  // While we don't yet know role, show loading state
-  if (isAdmin === null) {
-    return <div>Loading dashboard...</div>;
-  }
-
-  // Build collection refs. If admin -> full collection, otherwise filter by cashierId === uid
+  // -------------------------
+  // Build collection refs/hooks BEFORE any possible early return
+  // If isAdmin or currentUid is still null (loading), return null refs.
+  // This ensures hooks are always invoked in the same order.
+  // -------------------------
   const loansRef = useMemoFirebase(() => {
     if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null; // still loading role/uid
     if (isAdmin) return collection(firestore, 'loans');
-    // cashier: must filter by cashierId
     return query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const paymentsRef = useMemoFirebase(() => {
     if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null;
     if (isAdmin) return collection(firestore, 'payments');
     return query(collection(firestore, 'payments'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const expensesRef = useMemoFirebase(() => {
     if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null;
     if (isAdmin) return collection(firestore, 'expenses');
     return query(collection(firestore, 'expenses'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
-  // clients: depending on your app, cashiers may read clients; keep same behaviour but you can restrict similarly
   const clientsRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    // if you want cashiers to only see clients they created, you can add a where filter here
+    // Keep clients full for now; change if you want cashier-scoped clients too
     return collection(firestore, 'clients');
   }, [firestore]);
 
+  // useCollection called with possibly-null refs — these hooks must handle null safely.
+  // If your useCollection throws when passed null, replace with a safe wrapper that returns { data: [], isLoading: false } for null.
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
   const { data: clientsData, isLoading: clientsLoading } = useCollection<Client>(clientsRef);
+
+  // While role/uid are loading, show loading UI (hooks were still called)
+  if (isAdmin === null || currentUid === null) {
+    return <div>Loading dashboard...</div>;
+  }
 
   const isLoading = loansLoading || paymentsLoading || expensesLoading || clientsLoading;
 
@@ -109,7 +124,7 @@ export default function DashboardPage() {
   const totalRepayments = useMemo(() => calculateTotalRepayments(paymentsData || []), [paymentsData]);
   const totalExpenses = useMemo(() => calculateTotalExpenses(expensesData || []), [expensesData]);
   const netCashFlow = totalRepayments - (totalLoans + totalExpenses);
-  
+
   const recentActivity = useMemo(() => getRecentActivity(loansData || [], paymentsData || [], expensesData || [], clientsData || [], 5), [loansData, paymentsData, expensesData, clientsData]);
   const chartData = useMemo(() => getChartData(loansData || [], paymentsData || []), [loansData, paymentsData]);
 
@@ -130,7 +145,6 @@ export default function DashboardPage() {
     return <div>Loading dashboard...</div>;
   }
 
-  // now you can conditionally show admin-only UI where necessary
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -171,6 +185,7 @@ export default function DashboardPage() {
           variant={netCashFlow >= 0 ? 'default' : 'destructive'}
         />
       </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="col-span-1 lg:col-span-3 flex flex-col gap-6">
             <Card>
