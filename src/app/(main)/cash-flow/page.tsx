@@ -1,7 +1,8 @@
+// src/app/cash-flow/page.tsx
 'use client';
-import { useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import { collection } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useUser } from '@/firebase';
 import { CashFlowSummary } from '@/components/cash-flow/summary';
 import {
   Card,
@@ -24,22 +25,22 @@ export default function CashFlowPage() {
     }
   }, [appUser, isAuthLoading, router]);
 
-  // ✅ Use undefined instead of null for memoization
-  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans') : undefined, [firestore]);
-  const paymentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'payments') : undefined, [firestore]);
-  const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses') : undefined, [firestore]);
-  const investmentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'investments') : undefined, [firestore]);
+  // Use useMemo for stable refs (avoid custom useMemoFirebase issues)
+  const loansRef = useMemo(() => (firestore ? collection(firestore, 'loans') : null), [firestore]);
+  const paymentsRef = useMemo(() => (firestore ? collection(firestore, 'payments') : null), [firestore]);
+  const expensesRef = useMemo(() => (firestore ? collection(firestore, 'expenses') : null), [firestore]);
+  const investmentsRef = useMemo(() => (firestore ? collection(firestore, 'investments') : null), [firestore]);
 
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
   const { data: investmentsData, isLoading: investmentsLoading } = useCollection<Investment>(investmentsRef);
 
-  const isLoading = 
-    loansLoading || 
-    paymentsLoading || 
-    expensesLoading || 
-    investmentsLoading || 
+  const isLoading =
+    loansLoading ||
+    paymentsLoading ||
+    expensesLoading ||
+    investmentsLoading ||
     isAuthLoading;
 
   if (isLoading || appUser?.role !== 'admin') {
@@ -50,17 +51,17 @@ export default function CashFlowPage() {
     <div className="flex justify-center">
       <Card className="w-full max-w-4xl">
         <CardHeader>
-            <CardTitle>Daily Cash Flow</CardTitle>
-            <CardDescription>
-              Summary of today&apos;s financial movements.
-            </CardDescription>
+          <CardTitle>Daily Cash Flow</CardTitle>
+          <CardDescription>
+            Summary of today&apos;s financial movements.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <CashFlowSummary 
+          <CashFlowSummary
             loans={loansData || []}
             payments={paymentsData || []}
             expenses={expensesData || []}
-            investments={investmentsData || []}  // ✅ Pass investments
+            investments={investmentsData || []}
           />
         </CardContent>
       </Card>
