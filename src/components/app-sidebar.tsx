@@ -28,19 +28,7 @@ import { useAuth, useUser } from '@/firebase';
 
 const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar');
 
-// Extend ExtraItem type to optionally have roles
-type MenuItem = {
-  label: string;
-  href: string;
-  icon: React.FC<React.SVGProps<SVGSVGElement>>;
-  roles?: ('admin' | 'cashier')[];
-};
-
-type AppSidebarProps = {
-  extraItems?: MenuItem[];
-};
-
-export function AppSidebar({ extraItems = [] }: AppSidebarProps) {
+export function AppSidebar() {
   const pathname = usePathname();
   const { user, appUser } = useUser();
   const auth = useAuth();
@@ -51,7 +39,7 @@ export function AppSidebar({ extraItems = [] }: AppSidebarProps) {
 
   const isAdmin = appUser?.role === 'admin';
 
-  const menuItems: MenuItem[] = [
+  const menuItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'cashier'] },
     { href: '/clients', label: 'Clients', icon: Users, roles: ['admin', 'cashier'] },
     { href: '/loans', label: 'Loans', icon: Landmark, roles: ['admin', 'cashier'] },
@@ -59,14 +47,11 @@ export function AppSidebar({ extraItems = [] }: AppSidebarProps) {
     { href: '/expenses', label: 'Expenses', icon: Receipt, roles: ['admin', 'cashier'] },
     { href: '/cash-flow', label: 'Cash Flow', icon: ArrowRightLeft, roles: ['admin'] },
     { href: '/performance', label: 'Performance', icon: Sparkles, roles: ['admin'] },
+    { href: '/investments', label: 'Investments', icon: DollarSign, roles: ['admin', 'cashier'] },
   ];
 
-  // Merge menuItems + extraItems
-  const allMenuItems: MenuItem[] = [...menuItems, ...extraItems];
-
-  // Only filter by roles if roles exist
-  const visibleMenuItems = allMenuItems.filter(item =>
-    !item.roles || item.roles.includes(isAdmin ? 'admin' : 'cashier')
+  const visibleMenuItems = menuItems.filter(item =>
+    item.roles.includes(isAdmin ? 'admin' : 'cashier')
   );
 
   return (
@@ -74,7 +59,7 @@ export function AppSidebar({ extraItems = [] }: AppSidebarProps) {
       <SidebarHeader>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <DollarSignIcon className="w-5 h-5" />
+            <DollarSign className="w-5 h-5" />
           </div>
           <span className="font-semibold text-lg font-headline">LoanTrack</span>
         </div>
@@ -85,10 +70,7 @@ export function AppSidebar({ extraItems = [] }: AppSidebarProps) {
           {visibleMenuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <Link href={item.href} className="w-full">
-                <SidebarMenuButton
-                  isActive={pathname === item.href}
-                  tooltip={item.label}
-                >
+                <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
                   <item.icon />
                   <span>{item.label}</span>
                 </SidebarMenuButton>
@@ -121,11 +103,7 @@ export function AppSidebar({ extraItems = [] }: AppSidebarProps) {
             {user?.photoURL ? (
               <AvatarImage src={user.photoURL} alt="User Avatar" />
             ) : (
-              <AvatarImage
-                src={userAvatar?.imageUrl}
-                alt="User Avatar"
-                data-ai-hint={userAvatar?.imageHint}
-              />
+              <AvatarImage src={userAvatar?.imageUrl} alt="User Avatar" data-ai-hint={userAvatar?.imageHint} />
             )}
             <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
           </Avatar>
@@ -140,25 +118,5 @@ export function AppSidebar({ extraItems = [] }: AppSidebarProps) {
         </div>
       </SidebarFooter>
     </Sidebar>
-  );
-}
-
-function DollarSignIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="12" x2="12" y1="2" y2="22" />
-      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-    </svg>
   );
 }
