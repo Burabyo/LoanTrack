@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { collection } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Expense } from '@/lib/types';
@@ -17,6 +17,14 @@ export default function ExpensesPage() {
   const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses') : null, [firestore]);
   const { data: expenses, isLoading } = useCollection<Expense>(expensesRef);
 
+  const expensesWithCurrency = useMemo(() => {
+    if (!expenses) return [];
+    return expenses.map(e => ({
+      ...e,
+      currency: 'USh', // <--- add currency label
+    }));
+  }, [expenses]);
+
   if (isLoading) {
     return <div>Loading expenses...</div>;
   }
@@ -30,7 +38,7 @@ export default function ExpensesPage() {
       <CardContent>
         <DataTable
           columns={columns}
-          data={expenses || []}
+          data={expensesWithCurrency}
           filterColumn="description"
           newRecordButton={
             <AddExpenseForm

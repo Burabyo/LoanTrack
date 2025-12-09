@@ -1,187 +1,71 @@
 'use client';
-import { useParams } from 'next/navigation';
-import { doc, collection, query, where } from 'firebase/firestore';
-import {
-  useDoc,
-  useCollection,
-  useFirestore,
-  useMemoFirebase,
-} from '@/firebase';
-import type { Loan, Payment, Client } from '@/lib/types';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { format } from 'date-fns';
-import { Label } from '@/components/ui/label';
+import { useState, useMemo } from 'react';
+import { collection } from 'firebase/firestore';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { columns } from '@/components/loans/columns';
+import { DataTable } from '@/components/data-table/data-table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Loan, Client } from '@/lib/types';
+import { AddLoanForm } from '@/components/loans/add-loan-form';
+import { Button } from '@/components/ui/button';
+import { PlusCircle } from 'lucide-react';
 
-function LoanDetail({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-      <dd className={`text-sm text-foreground ${className}`}>{value}</dd>
-    </div>
-  );
-}
-
-export default function LoanDetailsPage() {
-  const { loanId } = useParams();
+export default function LoansPage() {
   const firestore = useFirestore();
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const loanRef = useMemoFirebase(
-    () => (firestore && loanId ? doc(firestore, 'loans', loanId as string) : null),
-    [firestore, loanId]
-  );
-  const { data: loan, isLoading: loanLoading } = useDoc<Loan>(loanRef);
+  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans') : null, [firestore]);
+  const clientsRef = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
 
-  const clientRef = useMemoFirebase(
-    () => (firestore && loan ? doc(firestore, 'clients', loan.clientId) : null),
-    [firestore, loan]
-  );
-  const { data: client, isLoading: clientLoading } = useDoc<Client>(clientRef);
+  const { data: loans, isLoading: loansLoading } = useCollection<Loan>(loansRef);
+  const { data: clients, isLoading: clientsLoading } = useCollection<Client>(clientsRef);
 
-  const paymentsQuery = useMemoFirebase(
-    () =>
-      firestore && loanId
-        ? query(collection(firestore, 'payments'), where('loanId', '==', loanId))
-        : null,
-    [firestore, loanId]
-  );
-  const { data: payments, isLoading: paymentsLoading } = useCollection<Payment>(
-    paymentsQuery
-  );
+  const isLoading = loansLoading || clientsLoading;
 
-  const isLoading = loanLoading || clientLoading || paymentsLoading;
+  const loansWithClientNames = useMemo(() => {
+    if (!loans || !clients) return [];
+    return loans.map((loan) => {
+      const client = clients.find((c) => c.id === loan.clientId);
+      return {
+        ...loan,
+        clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown Client',
+        currency: 'USh', // <--- add currency label
+      };
+    });
+  }, [loans, clients]);
+
 
   if (isLoading) {
-    return <div>Loading loan details...</div>;
+    return <div>Loading loans...</div>;
   }
-
-  if (!loan || !client) {
-    return <div>Loan or client not found.</div>;
-  }
-
-  const progress = (loan.amountPaid / loan.totalRepayable) * 100;
-  const remainingBalance = loan.totalRepayable - loan.amountPaid;
-
-  const currencyFormatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  });
 
   return (
-    <div className="grid gap-6 md:grid-cols-5">
-      <div className="md:col-span-3 lg:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Loan Summary</CardTitle>
-            <CardDescription>
-              For {client.firstName} {client.lastName}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <dl className="space-y-2">
-              <LoanDetail label="Loan ID" value={loan.id} className="font-mono text-xs" />
-            <LoanDetail
-  label="Status"
-  value={<Badge className="capitalize">{loan.status}</Badge>}
-/>
-
-              <LoanDetail
-                label="Principal"
-                value={currencyFormatter.format(loan.principal)}
-              />
-              <LoanDetail
-                label="Total Repayable"
-                value={currencyFormatter.format(loan.totalRepayable)}
-              />
-              <LoanDetail
-                label="Amount Paid"
-                value={currencyFormatter.format(loan.amountPaid)}
-                className="text-green-500"
-              />
-              <LoanDetail
-                label="Remaining Balance"
-                value={currencyFormatter.format(remainingBalance)}
-                className="font-semibold"
-              />
-              <LoanDetail
-                label="Issue Date"
-                value={format(new Date(loan.issueDate), 'PPP')}
-              />
-              <LoanDetail
-                label="Due Date"
-                value={format(new Date(loan.dueDate), 'PPP')}
-              />
-            </dl>
-            <div>
-              <Label className="text-sm text-muted-foreground">Repayment Progress</Label>
-              <Progress value={progress} className="mt-1" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="md:col-span-5 lg:col-span-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Payment History</CardTitle>
-            <CardDescription>
-              All payments recorded for this loan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Payment Date</TableHead>
-                  <TableHead className="text-right">Amount Paid</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments && payments.length > 0 ? (
-                  payments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>
-                        {format(new Date(payment.paymentDate), 'PPP')}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {currencyFormatter.format(payment.amount)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={2} className="h-24 text-center">
-                      No payments recorded yet.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Loan Management</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <DataTable
+          columns={columns}
+          data={loansWithClientNames as (Loan & { clientName: string; currency: string })[]}
+          filterColumn="clientName"
+          newRecordButton={
+            <AddLoanForm
+              isOpen={isFormOpen}
+              onOpenChange={setIsFormOpen}
+              clients={clients || []}
+              trigger={
+                <Button size="sm" className="h-8 gap-1" onClick={() => setIsFormOpen(true)}>
+                  <PlusCircle className="h-3.5 w-3.5" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    New Loan
+                  </span>
+                </Button>
+              }
+            />
+          }
+        />
+      </CardContent>
+    </Card>
   );
 }

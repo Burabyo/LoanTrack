@@ -28,12 +28,15 @@ import { formatCurrency } from '@/lib/format';
 export default function DashboardPage() {
   const firestore = useFirestore();
 
+  // --- role / uid state
   const [currentUid, setCurrentUid] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
+  // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCashierReport, setSelectedCashierReport] = useState<any>(null);
 
+  // get current uid
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -45,6 +48,7 @@ export default function DashboardPage() {
     return () => unsub();
   }, []);
 
+  // check roles_admin/{uid} to determine admin
   useEffect(() => {
     if (!firestore || !currentUid) return;
     let mounted = true;
@@ -63,25 +67,28 @@ export default function DashboardPage() {
     return () => { mounted = false; };
   }, [firestore, currentUid]);
 
+  // -------------------------
+  // Build collection refs
+  // -------------------------
   const loansRef = useMemoFirebase(() => {
-    if (!firestore || isAdmin === null || currentUid === null) return null;
-    return isAdmin
-      ? collection(firestore, 'loans')
-      : query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
+    if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null;
+    if (isAdmin) return collection(firestore, 'loans');
+    return query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const paymentsRef = useMemoFirebase(() => {
-    if (!firestore || isAdmin === null || currentUid === null) return null;
-    return isAdmin
-      ? collection(firestore, 'payments')
-      : query(collection(firestore, 'payments'), where('cashierId', '==', currentUid));
+    if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null;
+    if (isAdmin) return collection(firestore, 'payments');
+    return query(collection(firestore, 'payments'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const expensesRef = useMemoFirebase(() => {
-    if (!firestore || isAdmin === null || currentUid === null) return null;
-    return isAdmin
-      ? collection(firestore, 'expenses')
-      : query(collection(firestore, 'expenses'), where('cashierId', '==', currentUid));
+    if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null;
+    if (isAdmin) return collection(firestore, 'expenses');
+    return query(collection(firestore, 'expenses'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const clientsRef = useMemoFirebase(() => {
@@ -90,10 +97,14 @@ export default function DashboardPage() {
   }, [firestore]);
 
   const usersRef = useMemoFirebase(() => {
-    if (!firestore || isAdmin === null) return null;
+    if (!firestore) return null;
+    if (isAdmin === null) return null;
     return isAdmin ? collection(firestore, 'users') : null;
   }, [firestore, isAdmin]);
 
+  // -------------------------
+  // Hooks
+  // -------------------------
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
@@ -107,7 +118,7 @@ export default function DashboardPage() {
   const totalRepayments = useMemo(() => calculateTotalRepayments(paymentsData || []), [paymentsData]);
   const totalExpenses = useMemo(() => calculateTotalExpenses(expensesData || []), [expensesData]);
   const netCashFlow = totalRepayments - (totalLoans + totalExpenses);
-
+  
   const recentActivity = useMemo(() => getRecentActivity(loansData || [], paymentsData || [], expensesData || [], clientsData || [], 5), [loansData, paymentsData, expensesData, clientsData]);
   const chartData = useMemo(() => getChartData(loansData || [], paymentsData || []), [loansData, paymentsData]);
 
@@ -242,6 +253,8 @@ export default function DashboardPage() {
           <Dialog.Panel className="mx-auto w-full max-w-3xl rounded bg-white p-6 shadow-lg">
             <Dialog.Title className="text-lg font-bold mb-4">{selectedCashierReport?.username} Activities</Dialog.Title>
             <div className="space-y-4">
+
+              {/* Loans */}
               <div>
                 <h3 className="font-semibold mb-2">Loans</h3>
                 <table className="w-full text-sm bg-blue-50">
@@ -258,10 +271,10 @@ export default function DashboardPage() {
                       .map(l => {
                         const client = clientsData?.find(c => c.id === l.clientId);
                         return (
-                          <tr key={l.id}>
-                            <td>{client ? `${client.firstName} ${client.lastName}` : 'Unknown'}</td>
-                            <td>{formatCurrency(l.amountDisbursed)}</td>
-                            <td>{l.status}</td>
+                          <tr key={l.id} className="hover:bg-blue-100">
+                            <td className="text-blue-900 font-medium">{client ? `${client.firstName} ${client.lastName}` : 'Unknown'}</td>
+                            <td className="text-blue-900">{formatCurrency(l.amountDisbursed)}</td>
+                            <td className="text-blue-900">{l.status}</td>
                           </tr>
                         );
                       })}
@@ -269,6 +282,7 @@ export default function DashboardPage() {
                 </table>
               </div>
 
+              {/* Payments */}
               <div>
                 <h3 className="font-semibold mb-2">Payments</h3>
                 <table className="w-full text-sm bg-blue-50">
@@ -283,16 +297,17 @@ export default function DashboardPage() {
                     {(paymentsData || [])
                       .filter(p => p.cashierId === selectedCashierReport?.cashierId)
                       .map(p => (
-                        <tr key={p.id}>
-                          <td>{p.loanId}</td>
-                          <td>{formatCurrency(p.amount)}</td>
-                          <td>{p.paymentDate}</td>
+                        <tr key={p.id} className="hover:bg-blue-100">
+                          <td className="text-blue-900">{p.loanId}</td>
+                          <td className="text-blue-900">{formatCurrency(p.amount)}</td>
+                          <td className="text-blue-900">{p.paymentDate}</td>
                         </tr>
                       ))}
                   </tbody>
                 </table>
               </div>
 
+              {/* Expenses */}
               <div>
                 <h3 className="font-semibold mb-2">Expenses</h3>
                 <table className="w-full text-sm bg-blue-50">
@@ -307,10 +322,10 @@ export default function DashboardPage() {
                     {(expensesData || [])
                       .filter(e => e.cashierId === selectedCashierReport?.cashierId)
                       .map(e => (
-                        <tr key={e.id}>
-                          <td>{e.description}</td>
-                          <td>{formatCurrency(e.amount)}</td>
-                          <td>{e.date}</td>
+                        <tr key={e.id} className="hover:bg-blue-100">
+                          <td className="text-blue-900">{e.description}</td>
+                          <td className="text-blue-900">{formatCurrency(e.amount)}</td>
+                          <td className="text-blue-900">{e.date}</td>
                         </tr>
                       ))}
                   </tbody>

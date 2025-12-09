@@ -27,6 +27,7 @@ export default function PaymentsPage() {
       return {
         ...payment,
         clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown Client',
+        currency: 'USh', // <--- add currency label
       };
     });
   }, [payments, clients, loans]);
