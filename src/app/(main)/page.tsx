@@ -23,20 +23,14 @@ import type { Loan, Payment, Expense, Client } from '@/lib/types';
 import { OverdueLoansCard } from '@/components/dashboard/overdue-loans-card';
 import { getAuth } from 'firebase/auth';
 
-/**
- * DashboardPage
- *
- * - Always calls hooks in same order (fixes React error #310)
- * - Checks roles_admin/{uid} for admin status
- * - Admins load full collections; cashiers load only cashierId == uid
- */
-
 export default function DashboardPage() {
   const firestore = useFirestore();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = loading role
-  const [currentUid, setCurrentUid] = useState<string | null>(null);
 
-  // Get current user uid from firebase auth
+  // --- role / uid state
+  const [currentUid, setCurrentUid] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = still checking
+
+  // get current uid
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -44,44 +38,36 @@ export default function DashboardPage() {
       setCurrentUid(user.uid);
       return;
     }
-    // listen for async auth state
-    const unsubscribe = auth.onAuthStateChanged(u => {
-      setCurrentUid(u ? u.uid : null);
-    });
-    return () => unsubscribe();
+    const unsub = auth.onAuthStateChanged(u => setCurrentUid(u ? u.uid : null));
+    return () => unsub();
   }, []);
 
-  // Check admin doc existence (roles_admin/{uid})
+  // check roles_admin/{uid} to determine admin
   useEffect(() => {
     if (!firestore || !currentUid) return;
-
     let mounted = true;
     (async () => {
       try {
-        const adminDocRef = doc(firestore, 'roles_admin', currentUid);
-        const snap = await getDoc(adminDocRef);
+        const adminRef = doc(firestore, 'roles_admin', currentUid);
+        const snap = await getDoc(adminRef);
         if (!mounted) return;
         setIsAdmin(snap.exists());
       } catch (err) {
-        console.error('Failed to check admin role:', err);
+        console.error('Error checking admin role:', err);
         if (!mounted) return;
         setIsAdmin(false);
       }
     })();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [firestore, currentUid]);
 
   // -------------------------
-  // Build collection refs/hooks BEFORE any possible early return
-  // If isAdmin or currentUid is still null (loading), return null refs.
-  // This ensures hooks are always invoked in the same order.
+  // Build collection refs (always defined synchronously - may be null while loading)
   // -------------------------
   const loansRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    if (isAdmin === null || currentUid === null) return null; // still loading role/uid
+    // while we're still determining role or uid, return null so hooks order is stable
+    if (isAdmin === null || currentUid === null) return null;
     if (isAdmin) return collection(firestore, 'loans');
     return query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
@@ -102,29 +88,27 @@ export default function DashboardPage() {
 
   const clientsRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Keep clients full for now; change if you want cashier-scoped clients too
+    // keep clients unfiltered for now; change if you want cashier-scoped clients
     return collection(firestore, 'clients');
   }, [firestore]);
 
-  // useCollection called with possibly-null refs — these hooks must handle null safely.
-  // If your useCollection throws when passed null, replace with a safe wrapper that returns { data: [], isLoading: false } for null.
+  // -------------------------
+  // Hooks called in consistent order (must support null refs)
+  // -------------------------
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
   const { data: clientsData, isLoading: clientsLoading } = useCollection<Client>(clientsRef);
 
-  // While role/uid are loading, show loading UI (hooks were still called)
-  if (isAdmin === null || currentUid === null) {
-    return <div>Loading dashboard...</div>;
-  }
-
-  const isLoading = loansLoading || paymentsLoading || expensesLoading || clientsLoading;
+  // while role/uid or collections loading, show loading
+  const loadingRole = isAdmin === null || currentUid === null;
+  const isLoading = loadingRole || loansLoading || paymentsLoading || expensesLoading || clientsLoading;
 
   const totalLoans = useMemo(() => calculateTotalLoans(loansData || []), [loansData]);
   const totalRepayments = useMemo(() => calculateTotalRepayments(paymentsData || []), [paymentsData]);
   const totalExpenses = useMemo(() => calculateTotalExpenses(expensesData || []), [expensesData]);
   const netCashFlow = totalRepayments - (totalLoans + totalExpenses);
-
+  
   const recentActivity = useMemo(() => getRecentActivity(loansData || [], paymentsData || [], expensesData || [], clientsData || [], 5), [loansData, paymentsData, expensesData, clientsData]);
   const chartData = useMemo(() => getChartData(loansData || [], paymentsData || []), [loansData, paymentsData]);
 
@@ -147,13 +131,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <div className="text-sm text-muted-foreground">
-          {isAdmin ? 'Admin' : 'Cashier'}
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Loans Issued"
@@ -185,7 +162,6 @@ export default function DashboardPage() {
           variant={netCashFlow >= 0 ? 'default' : 'destructive'}
         />
       </div>
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="col-span-1 lg:col-span-3 flex flex-col gap-6">
             <Card>
