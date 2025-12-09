@@ -78,8 +78,9 @@ export type AppUser = User & {
   role: 'admin' | 'cashier';
 };
 
-export interface Investment {
+export type Investment = {
+  id: string;
   amount: number;
+  source: string;
   date: string;
-  receivedFrom: string;
-}
+};
