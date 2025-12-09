@@ -11,6 +11,7 @@ export type Client = {
 export type Loan = {
   id: string;
   clientId: string;
+  cashierId: string;
   principal: number;
   interest: number;
   processingFee: number;
@@ -21,25 +22,33 @@ export type Loan = {
   dueDate: string;
   status: 'active' | 'paid' | 'overdue';
   clientName?: string;
-  cashierId: string;
+  // convenience field for dashboards
+  amount?: number;
+  title?: string;
+  date?: string;
 };
 
 export type Payment = {
   id: string;
   loanId: string;
   clientId: string;
+  cashierId: string;
   amount: number;
   paymentDate: string;
-  cashierId: string;
+  // convenience fields
+  date?: string;
+  title?: string;
 };
 
 export type Expense = {
   id: string;
+  cashierId: string;
   category: 'lunch' | 'transport' | 'airtime' | 'other';
   description: string;
   amount: number;
   date: string;
-  cashierId: string;
+  // convenience fields
+  title?: string;
 };
 
 export type User = {
@@ -50,7 +59,7 @@ export type User = {
 };
 
 export type Transaction = {
-  id:string;
+  id: string;
   cashierId: string;
   type: 'loan_disbursed' | 'repayment' | 'expense';
   amount: number;
@@ -59,15 +68,15 @@ export type Transaction = {
 };
 
 export type Activity = {
-    type: 'Loan' | 'Payment' | 'Expense';
-    description: string;
-    amount: number;
-    date: string;
+  type: 'Loan' | 'Payment' | 'Expense';
+  description: string;
+  amount: number;
+  date: string;
 };
 
 export type AppUser = User & {
-    role: 'admin' | 'cashier';
-}
+  role: 'admin' | 'cashier';
+};
 
 export interface Investment {
   amount: number;

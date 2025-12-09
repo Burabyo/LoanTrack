@@ -19,25 +19,22 @@ import StatCard from '@/components/dashboard/stat-card';
 import { DollarSign, Landmark, TrendingDown, Users } from 'lucide-react';
 import OverviewChart from '@/components/dashboard/overview-chart';
 import { RecentActivityTable } from '@/components/dashboard/recent-activity-table';
-import type { Loan, Payment, Expense, Client } from '@/lib/types';
 import { OverdueLoansCard } from '@/components/dashboard/overdue-loans-card';
 import { getAuth } from 'firebase/auth';
 import { Dialog } from '@headlessui/react';
-import { X } from 'lucide-react';
+import type { Loan, Payment, Expense, Client, User } from '@/lib/types';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
 
+  // --- role / uid state
   const [currentUid, setCurrentUid] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedCashierLoans, setSelectedCashierLoans] = useState<Loan[]>([]);
-  const [selectedCashierPayments, setSelectedCashierPayments] = useState<Payment[]>([]);
-  const [selectedCashierExpenses, setSelectedCashierExpenses] = useState<Expense[]>([]);
-  const [selectedCashierName, setSelectedCashierName] = useState<string>('');
+  const [selectedCashierId, setSelectedCashierId] = useState<string | null>(null);
 
-  // get current user uid
+  // get current uid
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -49,7 +46,7 @@ export default function DashboardPage() {
     return () => unsub();
   }, []);
 
-  // check if admin
+  // check roles_admin/{uid} to determine admin
   useEffect(() => {
     if (!firestore || !currentUid) return;
     let mounted = true;
@@ -59,7 +56,8 @@ export default function DashboardPage() {
         const snap = await getDoc(adminRef);
         if (!mounted) return;
         setIsAdmin(snap.exists());
-      } catch {
+      } catch (err) {
+        console.error('Error checking admin role:', err);
         if (!mounted) return;
         setIsAdmin(false);
       }
@@ -67,26 +65,28 @@ export default function DashboardPage() {
     return () => { mounted = false; };
   }, [firestore, currentUid]);
 
-  // Collection refs
+  // -------------------------
+  // Build collection refs
+  // -------------------------
   const loansRef = useMemoFirebase(() => {
-    if (!firestore || isAdmin === null || currentUid === null) return null;
-    return isAdmin
-      ? collection(firestore, 'loans')
-      : query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
+    if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null;
+    if (isAdmin) return collection(firestore, 'loans');
+    return query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const paymentsRef = useMemoFirebase(() => {
-    if (!firestore || isAdmin === null || currentUid === null) return null;
-    return isAdmin
-      ? collection(firestore, 'payments')
-      : query(collection(firestore, 'payments'), where('cashierId', '==', currentUid));
+    if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null;
+    if (isAdmin) return collection(firestore, 'payments');
+    return query(collection(firestore, 'payments'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const expensesRef = useMemoFirebase(() => {
-    if (!firestore || isAdmin === null || currentUid === null) return null;
-    return isAdmin
-      ? collection(firestore, 'expenses')
-      : query(collection(firestore, 'expenses'), where('cashierId', '==', currentUid));
+    if (!firestore) return null;
+    if (isAdmin === null || currentUid === null) return null;
+    if (isAdmin) return collection(firestore, 'expenses');
+    return query(collection(firestore, 'expenses'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const clientsRef = useMemoFirebase(() => {
@@ -99,12 +99,11 @@ export default function DashboardPage() {
     return isAdmin ? collection(firestore, 'users') : null;
   }, [firestore, isAdmin]);
 
-  // Data hooks
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
   const { data: clientsData, isLoading: clientsLoading } = useCollection<Client>(clientsRef);
-  const { data: usersData, isLoading: usersLoading } = useCollection<any>(usersRef);
+  const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersRef);
 
   const loadingRole = isAdmin === null || currentUid === null;
   const isLoading = loadingRole || loansLoading || paymentsLoading || expensesLoading || clientsLoading || usersLoading;
@@ -130,20 +129,11 @@ export default function DashboardPage() {
       });
   }, [loansData, clientsData]);
 
-  // Admin: Cashier Reports
   const cashierReports = useMemo(() => {
-    if (!isAdmin || !loansData && !paymentsData && !expensesData) return [];
-    const reportsMap = new Map<string, {
-      cashierId: string;
-      username?: string;
-      totalLoans: number;
-      totalRepayments: number;
-      totalExpenses: number;
-      loansCount: number;
-      paymentsCount: number;
-      expensesCount: number;
-    }>();
-    (usersData || []).forEach((u: any) => {
+    if (!isAdmin) return [];
+    const reportsMap = new Map<string, any>();
+
+    (usersData || []).forEach(u => {
       if (u.role === 'cashier') {
         reportsMap.set(u.id, {
           cashierId: u.id,
@@ -157,6 +147,7 @@ export default function DashboardPage() {
         });
       }
     });
+
     const ensure = (id: string) => {
       if (!reportsMap.has(id)) {
         reportsMap.set(id, {
@@ -172,69 +163,55 @@ export default function DashboardPage() {
       }
       return reportsMap.get(id)!;
     };
-    (loansData || []).forEach(loan => {
-      const id = loan.cashierId || 'unknown';
-      const r = ensure(id);
-      r.totalLoans += Number((loan as any).amount || 0);
+
+    (loansData || []).forEach((l: Loan) => {
+      const r = ensure(l.cashierId);
+      r.totalLoans += l.amountDisbursed;
       r.loansCount += 1;
     });
-    (paymentsData || []).forEach(p => {
-      const id = p.cashierId || 'unknown';
-      const r = ensure(id);
-      r.totalRepayments += Number((p as any).amount || 0);
+
+    (paymentsData || []).forEach((p: Payment) => {
+      const r = ensure(p.cashierId);
+      r.totalRepayments += p.amount;
       r.paymentsCount += 1;
     });
-    (expensesData || []).forEach(e => {
-      const id = e.cashierId || 'unknown';
-      const r = ensure(id);
-      r.totalExpenses += Number((e as any).amount || 0);
+
+    (expensesData || []).forEach((e: Expense) => {
+      const r = ensure(e.cashierId);
+      r.totalExpenses += e.amount;
       r.expensesCount += 1;
     });
-    return Array.from(reportsMap.values()).sort((a,b) => (b.totalRepayments - b.totalLoans - b.totalExpenses) - (a.totalRepayments - a.totalLoans - a.totalExpenses));
+
+    return Array.from(reportsMap.values());
   }, [isAdmin, usersData, loansData, paymentsData, expensesData]);
 
-  if (isLoading) return <div>Loading dashboard...</div>;
+  const selectedCashierLoans = useMemo(() => {
+    if (!selectedCashierId) return [];
+    return (loansData || []).filter(l => l.cashierId === selectedCashierId);
+  }, [selectedCashierId, loansData]);
 
-  const openCashierModal = (cashierId: string, username: string) => {
-    setSelectedCashierLoans((loansData || []).filter(l => l.cashierId === cashierId));
-    setSelectedCashierPayments((paymentsData || []).filter(p => p.cashierId === cashierId));
-    setSelectedCashierExpenses((expensesData || []).filter(e => e.cashierId === cashierId));
-    setSelectedCashierName(username);
-    setModalOpen(true);
-  };
+  const selectedCashierPayments = useMemo(() => {
+    if (!selectedCashierId) return [];
+    return (paymentsData || []).filter(p => p.cashierId === selectedCashierId);
+  }, [selectedCashierId, paymentsData]);
+
+  const selectedCashierExpenses = useMemo(() => {
+    if (!selectedCashierId) return [];
+    return (expensesData || []).filter(e => e.cashierId === selectedCashierId);
+  }, [selectedCashierId, expensesData]);
+
+  if (isLoading) return <div>Loading dashboard...</div>;
 
   return (
     <div className="flex flex-col gap-6">
       {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Loans Issued"
-          value={`$${totalLoans.toLocaleString()}`}
-          icon={<Landmark className="h-4 w-4 text-muted-foreground" />}
-          description="Total principal amount given out"
-        />
-        <StatCard
-          title="Total Repayments"
-          value={`$${totalRepayments.toLocaleString()}`}
-          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-          description="Total cash collected from clients"
-        />
-        <StatCard
-          title="Total Expenses"
-          value={`$${totalExpenses.toLocaleString()}`}
-          icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />}
-          description="Total operational expenses"
-        />
-        <StatCard
-          title="Net Cash Flow"
-          value={`$${netCashFlow.toLocaleString()}`}
-          icon={<Users className="h-4 w-4 text-muted-foreground" />}
-          description={netCashFlow >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
-          variant={netCashFlow >= 0 ? 'default' : 'destructive'}
-        />
+        <StatCard title="Total Loans Issued" value={`$${totalLoans.toLocaleString()}`} icon={<Landmark className="h-4 w-4 text-muted-foreground" />} description="Total principal amount given out" />
+        <StatCard title="Total Repayments" value={`$${totalRepayments.toLocaleString()}`} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} description="Total cash collected from clients" />
+        <StatCard title="Total Expenses" value={`$${totalExpenses.toLocaleString()}`} icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />} description="Total operational expenses" />
+        <StatCard title="Net Cash Flow" value={`$${netCashFlow.toLocaleString()}`} icon={<Users className="h-4 w-4 text-muted-foreground" />} description={netCashFlow >= 0 ? 'Positive cash flow' : 'Negative cash flow'} variant={netCashFlow >= 0 ? 'default' : 'destructive'} />
       </div>
 
-      {/* Main content */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="col-span-1 lg:col-span-3 flex flex-col gap-6">
           <Card>
@@ -249,7 +226,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="col-span-1 lg:col-span-2 flex flex-col gap-6">
-          {/* Admin: Cashier Reports */}
           {isAdmin && (
             <Card>
               <CardHeader>
@@ -273,15 +249,18 @@ export default function DashboardPage() {
                     <tbody>
                       {cashierReports.map(r => (
                         <tr key={r.cashierId} className="border-t">
-                          <td className="py-2">{r.username}</td>
-                          <td className="py-2">${r.totalLoans.toLocaleString()}</td>
-                          <td className="py-2">${r.totalRepayments.toLocaleString()}</td>
-                          <td className="py-2">${r.totalExpenses.toLocaleString()}</td>
-                          <td className="py-2">${(r.totalRepayments - r.totalLoans - r.totalExpenses).toLocaleString()}</td>
-                          <td className="py-2">
+                          <td>{r.username}</td>
+                          <td>${r.totalLoans.toLocaleString()}</td>
+                          <td>${r.totalRepayments.toLocaleString()}</td>
+                          <td>${r.totalExpenses.toLocaleString()}</td>
+                          <td>${(r.totalRepayments - r.totalLoans - r.totalExpenses).toLocaleString()}</td>
+                          <td>
                             <button
-                              className="underline"
-                              onClick={() => openCashierModal(r.cashierId, r.username || r.cashierId)}
+                              className="underline text-blue-600"
+                              onClick={() => {
+                                setSelectedCashierId(r.cashierId);
+                                setModalOpen(true);
+                              }}
                             >
                               View
                             </button>
@@ -295,7 +274,6 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          {/* Recent Activity */}
           <Card>
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
@@ -307,93 +285,56 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Cashier modal */}
+      {/* Modal for cashier details */}
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)} className="relative z-50">
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="mx-auto max-w-3xl rounded bg-white p-6">
-            <div className="flex justify-between items-center mb-4">
-              <Dialog.Title className="text-lg font-semibold">Cashier Details: {selectedCashierName}</Dialog.Title>
-              <button onClick={() => setModalOpen(false)}><X /></button>
-            </div>
-
-            <h4 className="font-medium mt-2 mb-1">Loans</h4>
-            {selectedCashierLoans.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No loans.</div>
-            ) : (
-              <table className="w-full text-sm mb-4">
-                <thead>
-                  <tr className="text-left">
-                    <th>Client</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedCashierLoans.map(l => {
-                    const client = (clientsData || []).find(c => c.id === l.clientId);
-                    return (
-                      <tr key={l.id} className="border-t">
-                        <td>{client ? `${client.firstName} ${client.lastName}` : 'Unknown'}</td>
-                        <td>${(l as any).amount?.toLocaleString() || 0}</td>
-                        <td>{l.status}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-
-            <h4 className="font-medium mt-2 mb-1">Payments</h4>
-            {selectedCashierPayments.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No payments.</div>
-            ) : (
-              <table className="w-full text-sm mb-4">
-                <thead>
-                  <tr className="text-left">
-                    <th>Client</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedCashierPayments.map(p => {
-                    const client = (clientsData || []).find(c => c.id === p.clientId);
-                    return (
-                      <tr key={p.id} className="border-t">
-                        <td>{client ? `${client.firstName} ${client.lastName}` : 'Unknown'}</td>
-                        <td>${(p as any).amount?.toLocaleString() || 0}</td>
-                        <td>{(p as any).date || 'N/A'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-
-            <h4 className="font-medium mt-2 mb-1">Expenses</h4>
-            {selectedCashierExpenses.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No expenses.</div>
-            ) : (
+          <Dialog.Panel className="w-full max-w-3xl rounded bg-blue-100 p-6">
+            <Dialog.Title className="text-lg font-bold mb-4">Cashier Details</Dialog.Title>
+            <div className="overflow-x-auto max-h-96">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left">
-                    <th>Title</th>
+                  <tr>
+                    <th>Type</th>
                     <th>Amount</th>
                     <th>Date</th>
+                    <th>Info</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedCashierExpenses.map(e => (
+                  {selectedCashierLoans.map((l: Loan) => {
+                    const client = clientsData?.find((c: Client) => c.id === l.clientId);
+                    return (
+                      <tr key={l.id} className="border-t">
+                        <td>Loan</td>
+                        <td>${l.amountDisbursed.toLocaleString()}</td>
+                        <td>{l.dueDate}</td>
+                        <td>{client ? `${client.firstName} ${client.lastName}` : 'Unknown'}</td>
+                      </tr>
+                    );
+                  })}
+                  {selectedCashierPayments.map((p: Payment) => (
+                    <tr key={p.id} className="border-t">
+                      <td>Payment</td>
+                      <td>${p.amount.toLocaleString()}</td>
+                      <td>{p.paymentDate}</td>
+                      <td></td>
+                    </tr>
+                  ))}
+                  {selectedCashierExpenses.map((e: Expense) => (
                     <tr key={e.id} className="border-t">
-                      <td>{(e as any).title || 'N/A'}</td>
-                      <td>${(e as any).amount?.toLocaleString() || 0}</td>
-                      <td>{(e as any).date || 'N/A'}</td>
+                      <td>{e.category}</td>
+                      <td>${e.amount.toLocaleString()}</td>
+                      <td>{e.date}</td>
+                      <td>{e.description}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={() => setModalOpen(false)}>Close</button>
+            </div>
           </Dialog.Panel>
         </div>
       </Dialog>
