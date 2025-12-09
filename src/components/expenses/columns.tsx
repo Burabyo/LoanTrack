@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { formatCurrency } from '@/lib/format';
 
 export const columns: ColumnDef<Expense>[] = [
   {
@@ -39,12 +40,11 @@ export const columns: ColumnDef<Expense>[] = [
     accessorKey: 'amount',
     header: 'Amount',
      cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('amount'));
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(amount);
+      const raw = row.getValue('amount');
+      const amount = Number(raw || 0);
+      const formatted = formatCurrency(amount);
       return <div className="text-right font-medium">{formatted}</div>;
     },
   },
 ];
+export default columns;

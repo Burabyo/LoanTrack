@@ -16,6 +16,7 @@ import {
 import { useState } from 'react';
 import { RecordPaymentForm } from './record-payment-form';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/format';
 
 const statusVariantMap: Record<Loan['status'], 'default' | 'secondary' | 'outline'> = {
   active: 'default',
@@ -82,11 +83,9 @@ export const columns: ColumnDef<Loan & { clientName: string }>[] = [
       );
     },
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('principal'));
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(amount);
+      const raw = row.getValue('principal');
+      const amount = Number(raw || 0);
+      const formatted = formatCurrency(amount);
       return <div className="font-medium">{formatted}</div>;
     },
   },
@@ -94,11 +93,9 @@ export const columns: ColumnDef<Loan & { clientName: string }>[] = [
     accessorKey: 'totalRepayable',
     header: 'Total Repayable',
      cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('totalRepayable'));
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(amount);
+      const raw = row.getValue('totalRepayable');
+      const amount = Number(raw || 0);
+      const formatted = formatCurrency(amount);
       return <div className="font-medium">{formatted}</div>;
     },
   },
@@ -106,11 +103,9 @@ export const columns: ColumnDef<Loan & { clientName: string }>[] = [
     accessorKey: 'amountPaid',
     header: 'Amount Paid',
      cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('amountPaid'));
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(amount);
+      const raw = row.getValue('amountPaid');
+      const amount = Number(raw || 0);
+      const formatted = formatCurrency(amount);
       return <div className="font-medium">{formatted}</div>;
     },
   },
@@ -129,3 +124,4 @@ export const columns: ColumnDef<Loan & { clientName: string }>[] = [
     cell: ({ row }) => <LoanActions loan={row.original} />,
   },
 ];
+export default columns;

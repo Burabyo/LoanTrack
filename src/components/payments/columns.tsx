@@ -5,6 +5,7 @@ import type { Payment } from '@/lib/types';
 import { format } from 'date-fns';
 import { ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
+import { formatCurrency } from '@/lib/format';
 
 export const columns: ColumnDef<Payment & { clientName: string }>[] = [
   {
@@ -34,12 +35,11 @@ export const columns: ColumnDef<Payment & { clientName: string }>[] = [
     accessorKey: 'amount',
     header: 'Amount Paid',
      cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('amount'));
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'UGX',
-      }).format(amount);
+      const raw = row.getValue('amount');
+      const amount = Number(raw || 0);
+      const formatted = formatCurrency(amount);
       return <div className="font-medium">{formatted}</div>;
     },
   },
 ];
+export default columns;
