@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useEffect } from 'react';
+import { useEffect } from 'react';
 import { collection } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { CashFlowSummary } from '@/components/cash-flow/summary';
@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { Loan, Payment, Expense } from '@/lib/types';
+import type { Loan, Payment, Expense, Investment } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
 export default function CashFlowPage() {
@@ -24,19 +24,16 @@ export default function CashFlowPage() {
     }
   }, [appUser, isAuthLoading, router]);
 
-  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans') : null, [firestore]);
-  const paymentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'payments') : null, [firestore]);
-  const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses') : null, [firestore]);
-  
-  // ✅ NEW: investments collection
-  const investmentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'investments') : null, [firestore]);
+  // ✅ Use undefined instead of null for memoization
+  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans') : undefined, [firestore]);
+  const paymentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'payments') : undefined, [firestore]);
+  const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses') : undefined, [firestore]);
+  const investmentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'investments') : undefined, [firestore]);
 
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
-
-  // ✅ NEW: load investments
-  const { data: investmentsData, isLoading: investmentsLoading } = useCollection<any>(investmentsRef);
+  const { data: investmentsData, isLoading: investmentsLoading } = useCollection<Investment>(investmentsRef);
 
   const isLoading = 
     loansLoading || 
@@ -63,7 +60,7 @@ export default function CashFlowPage() {
             loans={loansData || []}
             payments={paymentsData || []}
             expenses={expensesData || []}
-            investments={investmentsData || []}  // ✅ NEW
+            investments={investmentsData || []}  // ✅ Pass investments
           />
         </CardContent>
       </Card>
