@@ -19,6 +19,7 @@ import { AlertTriangle } from 'lucide-react';
 import type { Loan } from '@/lib/types';
 import { differenceInDays } from 'date-fns';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/format';
 
 type OverdueLoansCardProps = {
   loans: (Loan & { clientName: string })[];
@@ -58,7 +59,7 @@ export function OverdueLoansCard({ loans }: OverdueLoansCardProps) {
                     <TableCell className="font-medium">{loan.clientName}</TableCell>
                     <TableCell>{daysOverdue > 0 ? `${daysOverdue} days` : 'Today'}</TableCell>
                     <TableCell className="text-right font-mono">
-                      UGX{remainingBalance.toFixed(2)}
+                      {formatCurrency(remainingBalance)}
                     </TableCell>
                     <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>

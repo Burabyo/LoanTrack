@@ -9,6 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import type { Activity } from '@/lib/types';
 import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/format';
 
 const variantMap: Record<Activity['type'], 'default' | 'secondary' | 'outline'> = {
   Loan: 'default',
@@ -34,7 +35,7 @@ export function RecentActivityTable({ data }: { data: Activity[] }) {
                 <Badge variant={variantMap[activity.type]}>{activity.type}</Badge>
               </TableCell>
               <TableCell className="font-medium">
-                ${activity.amount.toLocaleString()}
+                {formatCurrency(activity.amount)}
               </TableCell>
               <TableCell className="text-right text-muted-foreground text-xs">
                 {format(new Date(activity.date), 'MMM d, yyyy')}

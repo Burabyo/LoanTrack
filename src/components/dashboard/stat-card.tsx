@@ -1,43 +1,27 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import type { ReactNode } from 'react';
+'use client';
+import { ReactNode } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type StatCardProps = {
   title: string;
   value: string;
-  icon: ReactNode;
-  description: string;
+  description?: string;
+  icon?: ReactNode;
   variant?: 'default' | 'destructive';
 };
 
-export default function StatCard({
-  title,
-  value,
-  icon,
-  description,
-  variant = 'default',
-}: StatCardProps) {
+export default function StatCard({ title, value, description, icon, variant = 'default' }: StatCardProps) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
+    <Card className={variant === 'destructive' ? 'border-destructive' : ''}>
+      <CardHeader className="flex items-center gap-4">
+        {icon && <div className="text-muted-foreground">{icon}</div>}
+        <div>
+          <CardTitle>{title}</CardTitle>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        </div>
       </CardHeader>
       <CardContent>
-        <div
-          className={cn(
-            'text-2xl font-bold',
-            variant === 'destructive' && 'text-destructive'
-          )}
-        >
-          {value}
-        </div>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <div className="text-xl font-bold">{value}</div>
       </CardContent>
     </Card>
   );
