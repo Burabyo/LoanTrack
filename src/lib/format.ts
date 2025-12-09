@@ -1,4 +1,4 @@
 // lib/format.ts
-export function formatCurrency(amount: number): string {
-  return `UGX ${amount.toLocaleString()}`;
+export function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(amount);
 }
