@@ -11,7 +11,7 @@ import type { ReactNode } from 'react';
 export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar /> {/* No extraItems prop */}
       <SidebarInset>
         <div className="flex flex-col min-h-screen">
           <Header />

@@ -18,6 +18,7 @@ import {
   LogOut,
   Wallet,
   Receipt,
+  DollarSign,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -27,7 +28,19 @@ import { useAuth, useUser } from '@/firebase';
 
 const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar');
 
-export function AppSidebar() {
+// Extend ExtraItem type to optionally have roles
+type MenuItem = {
+  label: string;
+  href: string;
+  icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  roles?: ('admin' | 'cashier')[];
+};
+
+type AppSidebarProps = {
+  extraItems?: MenuItem[];
+};
+
+export function AppSidebar({ extraItems = [] }: AppSidebarProps) {
   const pathname = usePathname();
   const { user, appUser } = useUser();
   const auth = useAuth();
@@ -38,52 +51,23 @@ export function AppSidebar() {
 
   const isAdmin = appUser?.role === 'admin';
 
-  const menuItems = [
-    {
-      href: '/',
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-      roles: ['admin', 'cashier'],
-    },
-    {
-      href: '/clients',
-      label: 'Clients',
-      icon: Users,
-      roles: ['admin', 'cashier'],
-    },
-    {
-      href: '/loans',
-      label: 'Loans',
-      icon: Landmark,
-      roles: ['admin', 'cashier'],
-    },
-    {
-      href: '/payments',
-      label: 'Payments',
-      icon: Wallet,
-      roles: ['admin', 'cashier'],
-    },
-    {
-      href: '/expenses',
-      label: 'Expenses',
-      icon: Receipt,
-      roles: ['admin', 'cashier'],
-    },
-    {
-      href: '/cash-flow',
-      label: 'Cash Flow',
-      icon: ArrowRightLeft,
-      roles: ['admin'],
-    },
-    {
-      href: '/performance',
-      label: 'Performance',
-      icon: Sparkles,
-      roles: ['admin'],
-    },
+  const menuItems: MenuItem[] = [
+    { href: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'cashier'] },
+    { href: '/clients', label: 'Clients', icon: Users, roles: ['admin', 'cashier'] },
+    { href: '/loans', label: 'Loans', icon: Landmark, roles: ['admin', 'cashier'] },
+    { href: '/payments', label: 'Payments', icon: Wallet, roles: ['admin', 'cashier'] },
+    { href: '/expenses', label: 'Expenses', icon: Receipt, roles: ['admin', 'cashier'] },
+    { href: '/cash-flow', label: 'Cash Flow', icon: ArrowRightLeft, roles: ['admin'] },
+    { href: '/performance', label: 'Performance', icon: Sparkles, roles: ['admin'] },
   ];
 
-  const visibleMenuItems = menuItems.filter(item => item.roles.includes(isAdmin ? 'admin' : 'cashier'));
+  // Merge menuItems + extraItems
+  const allMenuItems: MenuItem[] = [...menuItems, ...extraItems];
+
+  // Only filter by roles if roles exist
+  const visibleMenuItems = allMenuItems.filter(item =>
+    !item.roles || item.roles.includes(isAdmin ? 'admin' : 'cashier')
+  );
 
   return (
     <Sidebar>
@@ -114,24 +98,24 @@ export function AppSidebar() {
         </div>
 
         <div className="flex flex-col gap-2">
-           <SidebarMenuItem>
-              <Link href="/settings" className="w-full">
-                <SidebarMenuButton tooltip="Settings" isActive={pathname === '/settings'}>
-                  <Cog />
-                  <span>Settings</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Logout" onClick={handleSignOut}>
-                  <LogOut />
-                  <span>Logout</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
+          <SidebarMenuItem>
+            <Link href="/settings" className="w-full">
+              <SidebarMenuButton tooltip="Settings" isActive={pathname === '/settings'}>
+                <Cog />
+                <span>Settings</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Logout" onClick={handleSignOut}>
+              <LogOut />
+              <span>Logout</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </div>
       </SidebarMenu>
 
-       <SidebarFooter>
+      <SidebarFooter>
         <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent">
           <Avatar className="h-9 w-9">
             {user?.photoURL ? (
