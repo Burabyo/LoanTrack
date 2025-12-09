@@ -151,6 +151,7 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 )}
               />
             </div>
+
             <FormField
               control={form.control}
               name="phoneNumber"
@@ -164,6 +165,53 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 </FormItem>
               )}
             />
+
+            {/* NEW FIELDS: National ID + Guarantor details */}
+            <div className="grid grid-cols-1 gap-4">
+              <FormField
+                control={form.control}
+                name="nationalId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>National ID</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 1234567890123456" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="guarantorName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Guarantor Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Guarantor full name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="guarantorPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Guarantor Phone</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Guarantor phone" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
             <FormField
               control={form.control}
               name="address"
@@ -171,13 +219,14 @@ export function AddClientForm({ isOpen, onOpenChange, trigger }: AddClientFormPr
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Main St, Anytown USA" {...field} />
+                    <Input placeholder="123 Main St, Anytown" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <DialogFooter>
+
+            <DialogFooter className="flex items-center justify-between">
               <DialogClose asChild>
                 <Button type="button" variant="secondary">
                   Cancel
