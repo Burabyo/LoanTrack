@@ -94,16 +94,18 @@ export function AddLoanForm({ isOpen, onOpenChange, trigger, clients }: AddLoanF
 
     if (clientDoc) {
       // Check if client has any cleared loan
-      const clientLoansQuery = query(
-        loansRef,
-        where('clientId', '==', clientDoc.id),
-        where('status', '==', 'cleared')
-      );
-      const clientLoansSnapshot = await getDocs(clientLoansQuery);
+    // Check if client has ever taken ANY loan before
+const clientLoansQuery = query(
+  loansRef,
+  where('clientId', '==', clientDoc.id)
+);
+const clientLoansSnapshot = await getDocs(clientLoansQuery);
 
-      if (!clientLoansSnapshot.empty) {
-        isNewClient = false; // Already had a loan → returning client
-      }
+// If the client has 1 or more previous loans → old client
+if (clientLoansSnapshot.size >= 1) {
+  isNewClient = false;
+}
+
     }
 
     // Calculate loan details
