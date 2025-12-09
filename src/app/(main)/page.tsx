@@ -15,14 +15,16 @@ import {
   getRecentActivity,
   getChartData,
 } from '@/lib/data';
+import { formatCurrency } from '@/lib/format';
 import StatCard from '@/components/dashboard/stat-card';
-import { DollarSign, Landmark, TrendingDown, Users } from 'lucide-react';
+import { Landmark, TrendingDown, Users } from 'lucide-react';
 import OverviewChart from '@/components/dashboard/overview-chart';
 import { RecentActivityTable } from '@/components/dashboard/recent-activity-table';
+import type { Loan, Payment, Expense, Client } from '@/lib/types';
 import { OverdueLoansCard } from '@/components/dashboard/overdue-loans-card';
 import { getAuth } from 'firebase/auth';
-import { Dialog } from '@headlessui/react';
-import type { Loan, Payment, Expense, Client, User } from '@/lib/types';
+import { Dialog, Transition } from '@headlessui/react';
+import { Fragment } from 'react';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -31,8 +33,9 @@ export default function DashboardPage() {
   const [currentUid, setCurrentUid] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedCashierId, setSelectedCashierId] = useState<string | null>(null);
+  // modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCashierReports, setSelectedCashierReports] = useState<any | null>(null);
 
   // get current uid
   useEffect(() => {
@@ -65,9 +68,7 @@ export default function DashboardPage() {
     return () => { mounted = false; };
   }, [firestore, currentUid]);
 
-  // -------------------------
-  // Build collection refs
-  // -------------------------
+  // collection refs
   const loansRef = useMemoFirebase(() => {
     if (!firestore) return null;
     if (isAdmin === null || currentUid === null) return null;
@@ -95,15 +96,17 @@ export default function DashboardPage() {
   }, [firestore]);
 
   const usersRef = useMemoFirebase(() => {
-    if (!firestore || isAdmin === null) return null;
+    if (!firestore) return null;
+    if (isAdmin === null) return null;
     return isAdmin ? collection(firestore, 'users') : null;
   }, [firestore, isAdmin]);
 
+  // data hooks
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
   const { data: clientsData, isLoading: clientsLoading } = useCollection<Client>(clientsRef);
-  const { data: usersData, isLoading: usersLoading } = useCollection<User>(usersRef);
+  const { data: usersData, isLoading: usersLoading } = useCollection<any>(usersRef);
 
   const loadingRole = isAdmin === null || currentUid === null;
   const isLoading = loadingRole || loansLoading || paymentsLoading || expensesLoading || clientsLoading || usersLoading;
@@ -129,8 +132,10 @@ export default function DashboardPage() {
       });
   }, [loansData, clientsData]);
 
+  // cashier reports for admin
   const cashierReports = useMemo(() => {
-    if (!isAdmin) return [];
+    if (!isAdmin || (!loansData && !paymentsData && !expensesData)) return [];
+
     const reportsMap = new Map<string, any>();
 
     (usersData || []).forEach(u => {
@@ -164,41 +169,26 @@ export default function DashboardPage() {
       return reportsMap.get(id)!;
     };
 
-    (loansData || []).forEach((l: Loan) => {
-      const r = ensure(l.cashierId);
-      r.totalLoans += l.amountDisbursed;
+    (loansData || []).forEach(loan => {
+      const r = ensure(loan.cashierId);
+      r.totalLoans += loan.amountDisbursed;
       r.loansCount += 1;
     });
 
-    (paymentsData || []).forEach((p: Payment) => {
+    (paymentsData || []).forEach(p => {
       const r = ensure(p.cashierId);
       r.totalRepayments += p.amount;
       r.paymentsCount += 1;
     });
 
-    (expensesData || []).forEach((e: Expense) => {
+    (expensesData || []).forEach(e => {
       const r = ensure(e.cashierId);
       r.totalExpenses += e.amount;
       r.expensesCount += 1;
     });
 
-    return Array.from(reportsMap.values());
+    return Array.from(reportsMap.values()).sort((a, b) => (b.totalRepayments - b.totalLoans) - (a.totalRepayments - a.totalLoans));
   }, [isAdmin, usersData, loansData, paymentsData, expensesData]);
-
-  const selectedCashierLoans = useMemo(() => {
-    if (!selectedCashierId) return [];
-    return (loansData || []).filter(l => l.cashierId === selectedCashierId);
-  }, [selectedCashierId, loansData]);
-
-  const selectedCashierPayments = useMemo(() => {
-    if (!selectedCashierId) return [];
-    return (paymentsData || []).filter(p => p.cashierId === selectedCashierId);
-  }, [selectedCashierId, paymentsData]);
-
-  const selectedCashierExpenses = useMemo(() => {
-    if (!selectedCashierId) return [];
-    return (expensesData || []).filter(e => e.cashierId === selectedCashierId);
-  }, [selectedCashierId, expensesData]);
 
   if (isLoading) return <div>Loading dashboard...</div>;
 
@@ -206,13 +196,35 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
       {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Loans Issued" value={`$${totalLoans.toLocaleString()}`} icon={<Landmark className="h-4 w-4 text-muted-foreground" />} description="Total principal amount given out" />
-        <StatCard title="Total Repayments" value={`$${totalRepayments.toLocaleString()}`} icon={<DollarSign className="h-4 w-4 text-muted-foreground" />} description="Total cash collected from clients" />
-        <StatCard title="Total Expenses" value={`$${totalExpenses.toLocaleString()}`} icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />} description="Total operational expenses" />
-        <StatCard title="Net Cash Flow" value={`$${netCashFlow.toLocaleString()}`} icon={<Users className="h-4 w-4 text-muted-foreground" />} description={netCashFlow >= 0 ? 'Positive cash flow' : 'Negative cash flow'} variant={netCashFlow >= 0 ? 'default' : 'destructive'} />
+        <StatCard
+          title="Total Loans Issued"
+          value={formatCurrency(totalLoans)}
+          icon={<Landmark className="h-4 w-4 text-muted-foreground" />}
+          description="Total principal amount given out"
+        />
+        <StatCard
+          title="Total Repayments"
+          value={formatCurrency(totalRepayments)}
+          icon={<Users className="h-4 w-4 text-muted-foreground" />}
+          description="Total cash collected from clients"
+        />
+        <StatCard
+          title="Total Expenses"
+          value={formatCurrency(totalExpenses)}
+          icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />}
+          description="Total operational expenses"
+        />
+        <StatCard
+          title="Net Cash Flow"
+          value={formatCurrency(netCashFlow)}
+          icon={<Users className="h-4 w-4 text-muted-foreground" />}
+          description={netCashFlow >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
+          variant={netCashFlow >= 0 ? 'default' : 'destructive'}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        {/* Overview + Overdue */}
         <div className="col-span-1 lg:col-span-3 flex flex-col gap-6">
           <Card>
             <CardHeader>
@@ -225,6 +237,7 @@ export default function DashboardPage() {
           <OverdueLoansCard loans={overdueLoans} />
         </div>
 
+        {/* Admin: Cashier Reports + Recent Activity */}
         <div className="col-span-1 lg:col-span-2 flex flex-col gap-6">
           {isAdmin && (
             <Card>
@@ -249,17 +262,17 @@ export default function DashboardPage() {
                     <tbody>
                       {cashierReports.map(r => (
                         <tr key={r.cashierId} className="border-t">
-                          <td>{r.username}</td>
-                          <td>${r.totalLoans.toLocaleString()}</td>
-                          <td>${r.totalRepayments.toLocaleString()}</td>
-                          <td>${r.totalExpenses.toLocaleString()}</td>
-                          <td>${(r.totalRepayments - r.totalLoans - r.totalExpenses).toLocaleString()}</td>
-                          <td>
+                          <td className="py-2">{r.username}</td>
+                          <td className="py-2">{formatCurrency(r.totalLoans)}</td>
+                          <td className="py-2">{formatCurrency(r.totalRepayments)}</td>
+                          <td className="py-2">{formatCurrency(r.totalExpenses)}</td>
+                          <td className="py-2">{formatCurrency(r.totalRepayments - r.totalLoans - r.totalExpenses)}</td>
+                          <td className="py-2">
                             <button
                               className="underline text-blue-600"
                               onClick={() => {
-                                setSelectedCashierId(r.cashierId);
-                                setModalOpen(true);
+                                setSelectedCashierReports(r);
+                                setIsModalOpen(true);
                               }}
                             >
                               View
@@ -286,58 +299,139 @@ export default function DashboardPage() {
       </div>
 
       {/* Modal for cashier details */}
-      <Dialog open={modalOpen} onClose={() => setModalOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-3xl rounded bg-blue-100 p-6">
-            <Dialog.Title className="text-lg font-bold mb-4">Cashier Details</Dialog.Title>
-            <div className="overflow-x-auto max-h-96">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                    <th>Info</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedCashierLoans.map((l: Loan) => {
-                    const client = clientsData?.find((c: Client) => c.id === l.clientId);
-                    return (
-                      <tr key={l.id} className="border-t">
-                        <td>Loan</td>
-                        <td>${l.amountDisbursed.toLocaleString()}</td>
-                        <td>{l.dueDate}</td>
-                        <td>{client ? `${client.firstName} ${client.lastName}` : 'Unknown'}</td>
-                      </tr>
-                    );
-                  })}
-                  {selectedCashierPayments.map((p: Payment) => (
-                    <tr key={p.id} className="border-t">
-                      <td>Payment</td>
-                      <td>${p.amount.toLocaleString()}</td>
-                      <td>{p.paymentDate}</td>
-                      <td></td>
-                    </tr>
-                  ))}
-                  {selectedCashierExpenses.map((e: Expense) => (
-                    <tr key={e.id} className="border-t">
-                      <td>{e.category}</td>
-                      <td>${e.amount.toLocaleString()}</td>
-                      <td>{e.date}</td>
-                      <td>{e.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <Transition appear show={isModalOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-30" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                    Cashier Details: {selectedCashierReports?.username}
+                  </Dialog.Title>
+
+                  <div className="mt-4 flex flex-col gap-4">
+                    <Card className="bg-blue-50">
+                      <CardHeader>
+                        <CardTitle>Loans</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr>
+                              <th>Client</th>
+                              <th>Amount</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(loansData || [])
+                              .filter(l => l.cashierId === selectedCashierReports?.cashierId)
+                              .map(l => {
+                                const client = clientsData?.find(c => c.id === l.clientId);
+                                return (
+                                  <tr key={l.id}>
+                                    <td>{client ? `${client.firstName} ${client.lastName}` : 'Unknown'}</td>
+                                    <td>{formatCurrency(l.amountDisbursed)}</td>
+                                    <td>{l.status}</td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-blue-50">
+                      <CardHeader>
+                        <CardTitle>Payments</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr>
+                              <th>Loan ID</th>
+                              <th>Amount</th>
+                              <th>Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(paymentsData || [])
+                              .filter(p => p.cashierId === selectedCashierReports?.cashierId)
+                              .map(p => (
+                                <tr key={p.id}>
+                                  <td>{p.loanId}</td>
+                                  <td>{formatCurrency(p.amount)}</td>
+                                  <td>{p.paymentDate}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-blue-50">
+                      <CardHeader>
+                        <CardTitle>Expenses</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr>
+                              <th>Description</th>
+                              <th>Amount</th>
+                              <th>Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(expensesData || [])
+                              .filter(e => e.cashierId === selectedCashierReports?.cashierId)
+                              .map(e => (
+                                <tr key={e.id}>
+                                  <td>{e.description}</td>
+                                  <td>{formatCurrency(e.amount)}</td>
+                                  <td>{e.date}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="mt-4">
+                    <button
+                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      onClick={() => setIsModalOpen(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
             </div>
-            <div className="mt-4 flex justify-end">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={() => setModalOpen(false)}>Close</button>
-            </div>
-          </Dialog.Panel>
-        </div>
-      </Dialog>
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 }
