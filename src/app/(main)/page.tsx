@@ -19,8 +19,8 @@ import StatCard from '@/components/dashboard/stat-card';
 import { DollarSign, Landmark, TrendingDown, Users } from 'lucide-react';
 import OverviewChart from '@/components/dashboard/overview-chart';
 import { RecentActivityTable } from '@/components/dashboard/recent-activity-table';
-import type { Loan, Payment, Expense, Client } from '@/lib/types';
 import { OverdueLoansCard } from '@/components/dashboard/overdue-loans-card';
+import type { Loan, Payment, Expense, Client } from '@/lib/types';
 import { getAuth } from 'firebase/auth';
 
 export default function DashboardPage() {
@@ -28,7 +28,7 @@ export default function DashboardPage() {
 
   // --- role / uid state
   const [currentUid, setCurrentUid] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = still checking
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   // get current uid
   useEffect(() => {
@@ -62,53 +62,48 @@ export default function DashboardPage() {
   }, [firestore, currentUid]);
 
   // -------------------------
-  // Build collection refs (always defined synchronously - may be null while loading)
+  // Collection references
   // -------------------------
   const loansRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    // while we're still determining role or uid, return null so hooks order is stable
-    if (isAdmin === null || currentUid === null) return null;
-    if (isAdmin) return collection(firestore, 'loans');
-    return query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
+    if (!firestore || isAdmin === null || currentUid === null) return null;
+    return isAdmin
+      ? collection(firestore, 'loans')
+      : query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const paymentsRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    if (isAdmin === null || currentUid === null) return null;
-    if (isAdmin) return collection(firestore, 'payments');
-    return query(collection(firestore, 'payments'), where('cashierId', '==', currentUid));
+    if (!firestore || isAdmin === null || currentUid === null) return null;
+    return isAdmin
+      ? collection(firestore, 'payments')
+      : query(collection(firestore, 'payments'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const expensesRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    if (isAdmin === null || currentUid === null) return null;
-    if (isAdmin) return collection(firestore, 'expenses');
-    return query(collection(firestore, 'expenses'), where('cashierId', '==', currentUid));
+    if (!firestore || isAdmin === null || currentUid === null) return null;
+    return isAdmin
+      ? collection(firestore, 'expenses')
+      : query(collection(firestore, 'expenses'), where('cashierId', '==', currentUid));
   }, [firestore, isAdmin, currentUid]);
 
   const clientsRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    // keep clients unfiltered for now; change if you want cashier-scoped clients
     return collection(firestore, 'clients');
   }, [firestore]);
 
-  // usersRef only for admin (to list cashiers)
   const usersRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    if (isAdmin === null) return null; // don't fetch until we know
+    if (!firestore || isAdmin === null) return null;
     return isAdmin ? collection(firestore, 'users') : null;
   }, [firestore, isAdmin]);
 
   // -------------------------
-  // Hooks called in consistent order (must support null refs)
+  // Fetch data hooks
   // -------------------------
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
   const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
   const { data: clientsData, isLoading: clientsLoading } = useCollection<Client>(clientsRef);
-  const { data: usersData, isLoading: usersLoading } = useCollection<any>(usersRef); // admin-only users list
+  const { data: usersData, isLoading: usersLoading } = useCollection<any>(usersRef);
 
-  // while role/uid or collections loading, show loading
   const loadingRole = isAdmin === null || currentUid === null;
   const isLoading = loadingRole || loansLoading || paymentsLoading || expensesLoading || clientsLoading || usersLoading;
 
@@ -116,7 +111,7 @@ export default function DashboardPage() {
   const totalRepayments = useMemo(() => calculateTotalRepayments(paymentsData || []), [paymentsData]);
   const totalExpenses = useMemo(() => calculateTotalExpenses(expensesData || []), [expensesData]);
   const netCashFlow = totalRepayments - (totalLoans + totalExpenses);
-  
+
   const recentActivity = useMemo(() => getRecentActivity(loansData || [], paymentsData || [], expensesData || [], clientsData || [], 5), [loansData, paymentsData, expensesData, clientsData]);
   const chartData = useMemo(() => getChartData(loansData || [], paymentsData || []), [loansData, paymentsData]);
 
@@ -134,24 +129,20 @@ export default function DashboardPage() {
   }, [loansData, clientsData]);
 
   // -------------------------
-  // Admin: compute cashier reports by aggregating loans/payments/expenses by cashierId
+  // Admin: cashier reports
   // -------------------------
   const cashierReports = useMemo(() => {
-    if (!isAdmin || !loansData && !paymentsData && !expensesData) return [];
+    if (!isAdmin || !usersData) return [];
 
     const reportsMap = new Map<string, {
       cashierId: string;
-      username?: string;
+      username: string;
       totalLoans: number;
       totalRepayments: number;
       totalExpenses: number;
-      loansCount: number;
-      paymentsCount: number;
-      expensesCount: number;
     }>();
 
-    // seed with users that are cashiers (if available)
-    (usersData || []).forEach((u: any) => {
+    usersData.forEach((u: any) => {
       if (u.role === 'cashier') {
         reportsMap.set(u.id, {
           cashierId: u.id,
@@ -159,9 +150,6 @@ export default function DashboardPage() {
           totalLoans: 0,
           totalRepayments: 0,
           totalExpenses: 0,
-          loansCount: 0,
-          paymentsCount: 0,
-          expensesCount: 0,
         });
       }
     });
@@ -174,41 +162,30 @@ export default function DashboardPage() {
           totalLoans: 0,
           totalRepayments: 0,
           totalExpenses: 0,
-          loansCount: 0,
-          paymentsCount: 0,
-          expensesCount: 0,
         });
       }
       return reportsMap.get(id)!;
     };
 
-    (loansData || []).forEach(loan => {
-      const id = loan.cashierId || 'unknown';
-      const r = ensure(id);
-     r.totalLoans += Number((loan as any).amount || 0);
-      r.loansCount += 1;
+    (loansData || []).forEach(l => {
+      const r = ensure(l.cashierId || 'unknown');
+      r.totalLoans += Number((l as any).amount || 0);
     });
 
     (paymentsData || []).forEach(p => {
-      const id = p.cashierId || 'unknown';
-      const r = ensure(id);
+      const r = ensure(p.cashierId || 'unknown');
       r.totalRepayments += Number(p.amount || 0);
-      r.paymentsCount += 1;
     });
 
     (expensesData || []).forEach(e => {
-      const id = e.cashierId || 'unknown';
-      const r = ensure(id);
+      const r = ensure(e.cashierId || 'unknown');
       r.totalExpenses += Number(e.amount || 0);
-      r.expensesCount += 1;
     });
 
-    return Array.from(reportsMap.values()).sort((a,b) => (b.totalRepayments - b.totalLoans) - (a.totalRepayments - a.totalLoans));
+    return Array.from(reportsMap.values()).sort((a, b) => (b.totalRepayments - b.totalLoans) - (a.totalRepayments - a.totalLoans));
   }, [isAdmin, usersData, loansData, paymentsData, expensesData]);
 
-  if (isLoading) {
-    return <div>Loading dashboard...</div>;
-  }
+  if (isLoading) return <div>Loading dashboard...</div>;
 
   return (
     <div className="flex flex-col gap-6">
@@ -235,66 +212,58 @@ export default function DashboardPage() {
           title="Net Cash Flow"
           value={`$${netCashFlow.toLocaleString()}`}
           icon={<Users className="h-4 w-4 text-muted-foreground" />}
-          description={
-            netCashFlow >= 0
-              ? 'Positive cash flow'
-              : 'Negative cash flow'
-          }
+          description={netCashFlow >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
           variant={netCashFlow >= 0 ? 'default' : 'destructive'}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="col-span-1 lg:col-span-3 flex flex-col gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Overview</CardTitle>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <OverviewChart data={chartData} />
-              </CardContent>
-            </Card>
-            <OverdueLoansCard loans={overdueLoans} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="pl-2">
+              <OverviewChart data={chartData} />
+            </CardContent>
+          </Card>
+
+          <OverdueLoansCard loans={overdueLoans} />
         </div>
 
         <div className="col-span-1 lg:col-span-2 flex flex-col gap-6">
-          {/* Admin-only: Cashier Reports */}
           {isAdmin && (
             <Card>
               <CardHeader>
                 <CardTitle>Cashier Reports</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto">
                 {cashierReports.length === 0 ? (
                   <div className="text-sm text-muted-foreground">No cashier data yet.</div>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left">
-                        <th>Cashier</th>
-                        <th>Total Loans</th>
-                        <th>Total Repaid</th>
-                        <th>Total Expenses</th>
-                        <th>Net</th>
-                        <th></th>
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="bg-muted/20">
+                      <tr>
+                        <th className="text-left px-2 py-1">Cashier</th>
+                        <th className="text-left px-2 py-1">Total Loans</th>
+                        <th className="text-left px-2 py-1">Total Repaid</th>
+                        <th className="text-left px-2 py-1">Total Expenses</th>
+                        <th className="text-left px-2 py-1">Net</th>
+                        <th className="text-left px-2 py-1">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {cashierReports.map(r => (
-                        <tr key={r.cashierId} className="border-t">
-                          <td className="py-2">{r.username}</td>
-                          <td className="py-2">${r.totalLoans.toLocaleString()}</td>
-                          <td className="py-2">${r.totalRepayments.toLocaleString()}</td>
-                          <td className="py-2">${r.totalExpenses.toLocaleString()}</td>
-                          <td className="py-2">${(r.totalRepayments - r.totalLoans - r.totalExpenses).toLocaleString()}</td>
-                          <td className="py-2">
+                        <tr key={r.cashierId} className="border-t hover:bg-muted/10">
+                          <td className="px-2 py-1">{r.username}</td>
+                          <td className="px-2 py-1">${r.totalLoans.toLocaleString()}</td>
+                          <td className="px-2 py-1">${r.totalRepayments.toLocaleString()}</td>
+                          <td className="px-2 py-1">${r.totalExpenses.toLocaleString()}</td>
+                          <td className="px-2 py-1">${(r.totalRepayments - r.totalLoans - r.totalExpenses).toLocaleString()}</td>
+                          <td className="px-2 py-1">
                             <button
-                              className="underline"
-                              onClick={() => {
-                                // you can navigate to a cashier detail page or open a modal
-                                // e.g., router.push(`/admin/cashier/${r.cashierId}`)
-                                console.log('View cashier', r.cashierId);
-                              }}
+                              className="underline text-primary"
+                              onClick={() => console.log('View cashier', r.cashierId)}
                             >
                               View
                             </button>
@@ -308,7 +277,6 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          {/* Recent Activity - always shown (but will contain admin or cashier-scoped items) */}
           <Card>
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
