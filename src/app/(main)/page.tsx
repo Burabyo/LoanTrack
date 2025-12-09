@@ -1,6 +1,6 @@
 'use client';
-import { useMemo } from 'react';
-import { collection } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
+import { collection, query, where, doc, getDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import {
   Card,
@@ -21,14 +21,82 @@ import OverviewChart from '@/components/dashboard/overview-chart';
 import { RecentActivityTable } from '@/components/dashboard/recent-activity-table';
 import type { Loan, Payment, Expense, Client } from '@/lib/types';
 import { OverdueLoansCard } from '@/components/dashboard/overdue-loans-card';
+import { getAuth } from 'firebase/auth';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = loading
+  const [currentUid, setCurrentUid] = useState<string | null>(null);
 
-  const loansRef = useMemoFirebase(() => firestore ? collection(firestore, 'loans') : null, [firestore]);
-  const paymentsRef = useMemoFirebase(() => firestore ? collection(firestore, 'payments') : null, [firestore]);
-  const expensesRef = useMemoFirebase(() => firestore ? collection(firestore, 'expenses') : null, [firestore]);
-  const clientsRef = useMemoFirebase(() => firestore ? collection(firestore, 'clients') : null, [firestore]);
+  // get current user uid from firebase auth (client)
+  useEffect(() => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      setCurrentUid(user.uid);
+    } else {
+      // in case auth is async, listen for state change
+      const unsubscribe = auth.onAuthStateChanged(u => {
+        setCurrentUid(u ? u.uid : null);
+      });
+      return () => unsubscribe();
+    }
+  }, []);
+
+  // check if user is admin by looking for roles_admin/{uid}
+  useEffect(() => {
+    if (!firestore || !currentUid) return;
+
+    let mounted = true;
+    (async () => {
+      try {
+        const adminDocRef = doc(firestore, 'roles_admin', currentUid);
+        const snap = await getDoc(adminDocRef);
+        if (!mounted) return;
+        setIsAdmin(snap.exists());
+      } catch (err) {
+        console.error('Failed to check admin role:', err);
+        if (!mounted) return;
+        setIsAdmin(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [firestore, currentUid]);
+
+  // While we don't yet know role, show loading state
+  if (isAdmin === null) {
+    return <div>Loading dashboard...</div>;
+  }
+
+  // Build collection refs. If admin -> full collection, otherwise filter by cashierId === uid
+  const loansRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    if (isAdmin) return collection(firestore, 'loans');
+    // cashier: must filter by cashierId
+    return query(collection(firestore, 'loans'), where('cashierId', '==', currentUid));
+  }, [firestore, isAdmin, currentUid]);
+
+  const paymentsRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    if (isAdmin) return collection(firestore, 'payments');
+    return query(collection(firestore, 'payments'), where('cashierId', '==', currentUid));
+  }, [firestore, isAdmin, currentUid]);
+
+  const expensesRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    if (isAdmin) return collection(firestore, 'expenses');
+    return query(collection(firestore, 'expenses'), where('cashierId', '==', currentUid));
+  }, [firestore, isAdmin, currentUid]);
+
+  // clients: depending on your app, cashiers may read clients; keep same behaviour but you can restrict similarly
+  const clientsRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    // if you want cashiers to only see clients they created, you can add a where filter here
+    return collection(firestore, 'clients');
+  }, [firestore]);
 
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
@@ -62,8 +130,16 @@ export default function DashboardPage() {
     return <div>Loading dashboard...</div>;
   }
 
+  // now you can conditionally show admin-only UI where necessary
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <div className="text-sm text-muted-foreground">
+          {isAdmin ? 'Admin' : 'Cashier'}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Loans Issued"
