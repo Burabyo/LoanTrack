@@ -1,7 +1,6 @@
-// src/app/(main)/cash-flow/page.tsx
 'use client';
 import { useMemo, useEffect } from 'react';
-import { collection } from 'firebase/firestore';
+import { collection, FirestoreDataConverter, CollectionReference } from 'firebase/firestore';
 import { useCollection, useFirestore, useUser } from '@/firebase';
 import { CashFlowSummary } from '@/components/cash-flow/summary';
 import {
@@ -14,6 +13,29 @@ import {
 import type { Loan, Payment, Expense, Investment } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
+// ----------------------------------
+// MOVE converters OUTSIDE the component
+// ----------------------------------
+const loanConverter: FirestoreDataConverter<Loan> = {
+  toFirestore: (loan) => loan,
+  fromFirestore: (snap) => snap.data() as Loan,
+};
+
+const paymentConverter: FirestoreDataConverter<Payment> = {
+  toFirestore: (p) => p,
+  fromFirestore: (snap) => snap.data() as Payment,
+};
+
+const expenseConverter: FirestoreDataConverter<Expense> = {
+  toFirestore: (e) => e,
+  fromFirestore: (snap) => snap.data() as Expense,
+};
+
+const investmentConverter: FirestoreDataConverter<Investment> = {
+  toFirestore: (i) => i,
+  fromFirestore: (snap) => snap.data() as Investment,
+};
+
 export default function CashFlowPage() {
   const firestore = useFirestore();
   const { appUser, isUserLoading: isAuthLoading } = useUser();
@@ -25,15 +47,48 @@ export default function CashFlowPage() {
     }
   }, [appUser, isAuthLoading, router]);
 
-  const loansRef = useMemo(() => (firestore ? collection(firestore, 'loans') : undefined), [firestore]);
-  const paymentsRef = useMemo(() => (firestore ? collection(firestore, 'payments') : undefined), [firestore]);
-  const expensesRef = useMemo(() => (firestore ? collection(firestore, 'expenses') : undefined), [firestore]);
-  const investmentsRef = useMemo(() => (firestore ? collection(firestore, 'investments') : undefined), [firestore]);
+  // ---------------------------
+  // Stable memoized collection refs
+  // ---------------------------
+  const loansRef = useMemo(
+    () =>
+      firestore
+        ? collection(firestore, 'loans').withConverter(loanConverter)
+        : undefined,
+    [firestore]
+  );
 
-  const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
-  const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
-  const { data: expensesData, isLoading: expensesLoading } = useCollection<Expense>(expensesRef);
-  const { data: investmentsData, isLoading: investmentsLoading } = useCollection<Investment>(investmentsRef);
+  const paymentsRef = useMemo(
+    () =>
+      firestore
+        ? collection(firestore, 'payments').withConverter(paymentConverter)
+        : undefined,
+    [firestore]
+  );
+
+  const expensesRef = useMemo(
+    () =>
+      firestore
+        ? collection(firestore, 'expenses').withConverter(expenseConverter)
+        : undefined,
+    [firestore]
+  );
+
+  const investmentsRef = useMemo(
+    () =>
+      firestore
+        ? collection(firestore, 'investments').withConverter(investmentConverter)
+        : undefined,
+    [firestore]
+  );
+
+  // ---------------------------
+  // useCollection safely
+  // ---------------------------
+  const { data: loansData, isLoading: loansLoading } = useCollection(loansRef);
+  const { data: paymentsData, isLoading: paymentsLoading } = useCollection(paymentsRef);
+  const { data: expensesData, isLoading: expensesLoading } = useCollection(expensesRef);
+  const { data: investmentsData, isLoading: investmentsLoading } = useCollection(investmentsRef);
 
   const isLoading =
     loansLoading ||
