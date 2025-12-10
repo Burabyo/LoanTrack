@@ -78,12 +78,16 @@ export type AppUser = User & {
   role: 'admin' | 'cashier';
 };
 
+// src/lib/types.ts (add or replace Investment)
 export interface Investment {
-  id?: string;             // optional when building object client-side; set by Firestore doc id
-  amount: number;
-  date: string;           // ISO date string, or store serverTimestamp separately
-  source: string;         // e.g., "Boss" or "Manager"
-  receivedFrom?: string;  // optional: person/entity from whom money was received
+  id?: string;
+  amount?: number;
+  date?: string;
+  source?: string;
+  cashierId?: string;
   description?: string;
-  cashierId?: string;     // which cashier received the cash (optional)
+  createdAt?: string | object;
+  createdBy?: string | null;
 }
+
+

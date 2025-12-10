@@ -1,4 +1,4 @@
-// src/app/cash-flow/page.tsx
+// src/app/(main)/cash-flow/page.tsx
 'use client';
 import { useMemo, useEffect } from 'react';
 import { collection } from 'firebase/firestore';
@@ -25,11 +25,10 @@ export default function CashFlowPage() {
     }
   }, [appUser, isAuthLoading, router]);
 
-  // Use useMemo for stable refs (avoid custom useMemoFirebase issues)
-  const loansRef = useMemo(() => (firestore ? collection(firestore, 'loans') : null), [firestore]);
-  const paymentsRef = useMemo(() => (firestore ? collection(firestore, 'payments') : null), [firestore]);
-  const expensesRef = useMemo(() => (firestore ? collection(firestore, 'expenses') : null), [firestore]);
-  const investmentsRef = useMemo(() => (firestore ? collection(firestore, 'investments') : null), [firestore]);
+  const loansRef = useMemo(() => (firestore ? collection(firestore, 'loans') : undefined), [firestore]);
+  const paymentsRef = useMemo(() => (firestore ? collection(firestore, 'payments') : undefined), [firestore]);
+  const expensesRef = useMemo(() => (firestore ? collection(firestore, 'expenses') : undefined), [firestore]);
+  const investmentsRef = useMemo(() => (firestore ? collection(firestore, 'investments') : undefined), [firestore]);
 
   const { data: loansData, isLoading: loansLoading } = useCollection<Loan>(loansRef);
   const { data: paymentsData, isLoading: paymentsLoading } = useCollection<Payment>(paymentsRef);
@@ -52,9 +51,7 @@ export default function CashFlowPage() {
       <Card className="w-full max-w-4xl">
         <CardHeader>
           <CardTitle>Daily Cash Flow</CardTitle>
-          <CardDescription>
-            Summary of today&apos;s financial movements.
-          </CardDescription>
+          <CardDescription>Summary of today's financial movements.</CardDescription>
         </CardHeader>
         <CardContent>
           <CashFlowSummary

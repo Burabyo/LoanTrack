@@ -1,75 +1,47 @@
+// src/app/(main)/investments/page.tsx
 'use client';
-import { useFirestore, useUser, useCollection, addDocumentNonBlocking } from '@/firebase';
-import { useState } from 'react';
+
+import { useMemo } from 'react';
 import { collection } from 'firebase/firestore';
-import { Button } from '@/components/ui/button';
+import { useCollection, useFirestore, useUser } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { format } from 'date-fns';
+import { AddInvestmentForm } from '@/components/investments/add-investment-form';
+import { InvestmentsList } from '@/components/investments/investments-list';
+import type { Investment } from '@/lib/types';
 
 export default function InvestmentsPage() {
   const firestore = useFirestore();
-  const { appUser } = useUser();
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [source, setSource] = useState('');
-  const [cashierId, setCashierId] = useState('');
-  const [date, setDate] = useState(new Date());
+  const { appUser, isUserLoading } = useUser();
 
-  const investmentsRef = collection(firestore!, 'investments');
+  // build a stable ref using useMemo (returns undefined until firestore ready)
+  const investmentsRef = useMemo(() => {
+    if (!firestore) return undefined;
+    return collection(firestore, 'investments');
+  }, [firestore]);
 
-  const { data: investmentsData } = useCollection<any>(investmentsRef);
+  const { data: investmentsData, isLoading } = useCollection<Investment>(investmentsRef);
 
-  const handleAddInvestment = async () => {
-    if (!amount || !description || !source || !cashierId || !date) return;
+  if (isUserLoading) return <div>Loading...</div>;
 
-    await addDocumentNonBlocking(investmentsRef, {
-      amount: Number(amount),
-      description,
-      source,
-      cashierId,
-      date: date.toISOString(),
-      createdAt: new Date().toISOString(),
-    });
+  const isAdmin = appUser?.role === 'admin';
+  const currentUid = appUser?.id ?? (appUser as any)?.id ?? null;
 
-    setAmount('');
-    setDescription('');
-    setSource('');
-    setCashierId('');
-    setDate(new Date());
-  };
+  const visibleInvestments = useMemo(() => {
+    if (!investmentsData) return [];
+    if (isAdmin) return investmentsData;
+    if (!currentUid) return [];
+    return investmentsData.filter(inv => (inv.cashierId || '') === currentUid);
+  }, [investmentsData, isAdmin, currentUid]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader><CardTitle>Add New Investment</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input placeholder="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-          <Input placeholder="Source (Admin/Manager)" value={source} onChange={(e) => setSource(e.target.value)} />
-          <Input placeholder="Cashier ID" value={cashierId} onChange={(e) => setCashierId(e.target.value)} />
-          <Input type="date" value={format(date, 'yyyy-MM-dd')} onChange={(e) => setDate(new Date(e.target.value))} />
-          <Button onClick={handleAddInvestment}>Add Investment</Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Investments</CardTitle></CardHeader>
+    <div className="flex justify-center">
+      <Card className="w-full max-w-4xl">
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>Investments</CardTitle>
+          {isAdmin && <AddInvestmentForm />}
+        </CardHeader>
         <CardContent>
-          {investmentsData?.length === 0 && <p>No investments yet.</p>}
-          <ul className="space-y-2">
-            {investmentsData?.map(inv => (
-              <li key={inv.id} className="border p-2 rounded bg-gray-100">
-                <div className="flex justify-between">
-                  <span>{inv.description}</span>
-                  <span>UGX {inv.amount.toLocaleString()}</span>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {inv.source} → Cashier: {inv.cashierId} on {new Date(inv.date).toLocaleDateString()}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <InvestmentsList investments={visibleInvestments} />
         </CardContent>
       </Card>
     </div>

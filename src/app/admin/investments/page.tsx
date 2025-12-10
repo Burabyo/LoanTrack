@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { collection } from 'firebase/firestore';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { AddInvestmentForm } from '@/components/investments/AddInvestmentForm';
+import { AddInvestmentForm } from '@/components/investments/add-investment-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
