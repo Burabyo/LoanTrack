@@ -12,11 +12,13 @@ export default function AdminInvestmentsPage() {
   const firestore = useFirestore();
   const { appUser, isUserLoading } = useUser();
 
-  const investmentsRef = useMemoFirebase(
-    () => firestore ? collection(firestore, 'investments') : null,
-    [firestore]
-  );
+  // Properly memoized collection reference
+  const investmentsRef = useMemoFirebase(() => {
+    if (!firestore) return undefined; // undefined instead of null
+    return collection(firestore, 'investments');
+  }, [firestore]);
 
+  // Only call useCollection if we have a memoized reference
   const { data: investments, isLoading } = useCollection(investmentsRef);
 
   if (isUserLoading || !appUser || appUser.role !== 'admin') {
@@ -41,17 +43,23 @@ export default function AdminInvestmentsPage() {
         <CardContent>
           <ScrollArea className="h-96">
             <div className="space-y-3">
-              {investments?.map(inv => (
-                <div key={inv.id} className="flex justify-between items-center p-2 border rounded">
-                  <div>
-                    <p><strong>Cashier ID:</strong> {inv.cashierId}</p>
-                    <p><strong>Source:</strong> {inv.source}</p>
-                    <p><strong>Description:</strong> {inv.description}</p>
-                    <p><strong>Date:</strong> {new Date(inv.date).toLocaleDateString()}</p>
+              {investments && investments.length > 0 ? (
+                investments.map(inv => (
+                  <div key={inv.id} className="flex justify-between items-center p-2 border rounded">
+                    <div>
+                      <p><strong>Cashier ID:</strong> {inv.cashierId}</p>
+                      <p><strong>Source:</strong> {inv.source}</p>
+                      <p><strong>Description:</strong> {inv.description}</p>
+                      <p><strong>Date:</strong> {new Date(inv.date).toLocaleDateString()}</p>
+                    </div>
+                    <Badge className="text-green-600 font-mono">
+                      UGX {inv.amount.toLocaleString()}
+                    </Badge>
                   </div>
-                  <Badge className="text-green-600 font-mono">UGX {inv.amount.toLocaleString()}</Badge>
-                </div>
-              )) || <p>No investments recorded.</p>}
+                ))
+              ) : (
+                <p>No investments recorded.</p>
+              )}
             </div>
           </ScrollArea>
         </CardContent>
