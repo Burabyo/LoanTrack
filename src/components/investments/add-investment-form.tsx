@@ -2,13 +2,28 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useUser, useMemoFirebase, useCollection, addDocumentNonBlocking } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { formatISO } from 'date-fns';
@@ -17,7 +32,7 @@ const schema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),
   date: z.string().optional(),
   source: z.string().min(1, 'Source is required'),
-  cashierId: z.string().min(1, 'Cashier UID is required'),
+  cashierId: z.string().min(1, 'Cashier is required'),
   description: z.string().optional(),
 });
 
@@ -28,6 +43,26 @@ export function AddInvestmentForm() {
   const { appUser } = useUser();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+
+  // Memoized Firestore references
+  const investmentsRef = useMemoFirebase(() => {
+    if (!firestore) return undefined;
+    return collection(firestore, 'investments');
+  }, [firestore]);
+
+  const usersRef = useMemoFirebase(() => {
+    if (!firestore) return undefined;
+    return collection(firestore, 'users');
+  }, [firestore]);
+
+  // Fetch cashiers to display in dropdown
+  const { data: usersData } = useCollection(usersRef);
+
+  // Filter only cashiers for the dropdown
+  const cashiers = useMemo(() => {
+    if (!usersData) return [];
+    return usersData.filter(u => u.role === 'cashier');
+  }, [usersData]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -40,20 +75,14 @@ export function AddInvestmentForm() {
     },
   });
 
-  const investmentsRef = useMemo(() => {
-    if (!firestore) return undefined;
-    return collection(firestore, 'investments');
-  }, [firestore]);
-
   async function onSubmit(values: FormValues) {
     if (!firestore || !appUser) return;
     try {
-      // use non-blocking helper (keeps behavior consistent)
       await addDocumentNonBlocking(investmentsRef!, {
         amount: Number(values.amount),
         date: values.date || new Date().toISOString(),
         source: values.source,
-        cashierId: values.cashierId,
+        cashierId: values.cashierId, // now selected from dropdown
         description: values.description || '',
         createdAt: new Date().toISOString(),
         createdBy: (appUser as any).uid ?? (appUser as any).id ?? null,
@@ -110,11 +139,19 @@ export function AddInvestmentForm() {
               </FormItem>
             )} />
 
+            {/* Cashier dropdown */}
             <FormField name="cashierId" control={form.control} render={({ field }) => (
               <FormItem>
-                <FormLabel>Cashier UID (who received)</FormLabel>
+                <FormLabel>Cashier</FormLabel>
                 <FormControl>
-                  <input type="text" {...field} className="w-full rounded border p-2" placeholder="cashier uid" />
+                  <select {...field} className="w-full rounded border p-2">
+                    <option value="">Select a cashier</option>
+                    {cashiers.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.email} {/* show email instead of UID */}
+                      </option>
+                    ))}
+                  </select>
                 </FormControl>
                 <FormMessage />
               </FormItem>
